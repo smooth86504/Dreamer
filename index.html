@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#EDE8D6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="資產帳本">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>資產帳本</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root{
+    --paper:#EBE6D4;
+    --paper-line:#D9D2B8;
+    --surface:#FBF8EF;
+    --ink:#242219;
+    --ink-soft:#68624E;
+    --ink-faint:#948C70;
+    --border:#DAD2B4;
+    --twd:#A8403F;
+    --twd-dark:#7A2C2C;
+    --twd-tint:#F3E2DF;
+    --usd:#2B4A6E;
+    --usd-dark:#1C3350;
+    --usd-tint:#DFE6EE;
+    --up:#B6373A;
+    --down:#2E7D4E;
+    --shadow:0 1px 2px rgba(36,34,25,0.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    background-image:repeating-linear-gradient(to bottom, transparent, transparent 34px, var(--paper-line) 35px);
+    color:var(--ink);
+    font-family:'Noto Sans TC',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;}
+  .serif{font-family:'Noto Serif TC',serif;}
+  button, input, select{font-family:inherit;}
+
+  /* ---------- 登入畫面 ---------- */
+  #loginScreen{
+    min-height:100vh;
+    display:flex;align-items:center;justify-content:center;
+    padding:24px;
+  }
+  .login-card{
+    width:100%;max-width:360px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:36px 28px;
+    box-shadow:var(--shadow);
+    text-align:center;
+  }
+  .stamp{
+    width:64px;height:64px;border-radius:50%;
+    border:3px double var(--twd);
+    color:var(--twd);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Noto Serif TC',serif;font-weight:700;font-size:22px;
+    margin:0 auto 18px;
+    transform:rotate(-6deg);
+    letter-spacing:1px;
+  }
+  .login-card h1{font-size:20px;margin:0 0 6px;}
+  .login-card p{color:var(--ink-soft);font-size:13px;margin:0 0 24px;}
+  .field{text-align:left;margin-bottom:14px;}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:6px;}
+  .field input, .field select{
+    width:100%;padding:10px 12px;
+    border:1px solid var(--border);border-radius:3px;
+    background:#fff;color:var(--ink);font-size:14px;
+  }
+  .btn{
+    width:100%;padding:11px;border-radius:3px;border:1px solid var(--ink);
+    background:var(--ink);color:var(--surface);font-size:14px;font-weight:500;
+    cursor:pointer;margin-top:6px;
+  }
+  .btn:active{transform:scale(0.99);}
+  .btn-outline{
+    background:transparent;color:var(--ink);border:1px solid var(--border);
+  }
+  .error-msg{color:var(--twd);font-size:12px;margin-top:10px;min-height:16px;}
+
+  /* ---------- App 外框 ---------- */
+  #app{display:none;max-width:720px;margin:0 auto;padding:20px 16px 100px;}
+  header.topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:6px 2px 18px;border-bottom:1px solid var(--paper-line);margin-bottom:20px;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .mark{
+    width:34px;height:34px;border-radius:50%;border:2px double var(--twd);
+    color:var(--twd);display:flex;align-items:center;justify-content:center;
+    font-family:'Noto Serif TC',serif;font-weight:700;font-size:13px;transform:rotate(-6deg);
+  }
+  .brand h1{font-size:16px;margin:0;font-weight:500;}
+  .who{font-size:12px;color:var(--ink-soft);}
+  .logout-link{font-size:12px;color:var(--ink-soft);text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;}
+
+  nav.tabs{
+    display:flex;gap:6px;margin-bottom:22px;
+    border-bottom:1px solid var(--paper-line);
+  }
+  nav.tabs button{
+    flex:1;background:none;border:none;padding:10px 4px;
+    font-size:13px;color:var(--ink-soft);cursor:pointer;
+    border-bottom:2px solid transparent;margin-bottom:-1px;
+  }
+  nav.tabs button.active{color:var(--ink);border-bottom-color:var(--ink);font-weight:500;}
+
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;}
+  @media(max-width:520px){.cards{grid-template-columns:1fr;}}
+
+  .curr-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:4px;
+    padding:18px 16px;box-shadow:var(--shadow);
+  }
+  .curr-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+  .chip{
+    width:26px;height:26px;border-radius:50%;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Noto Serif TC',serif;font-weight:700;font-size:12px;
+    transform:rotate(-6deg);
+  }
+  .chip.twd{border:2px double var(--twd);color:var(--twd);}
+  .chip.usd{border:2px double var(--usd);color:var(--usd);}
+  .curr-label{font-size:12px;color:var(--ink-soft);}
+  .curr-total{font-size:26px;font-weight:600;margin:2px 0 4px;}
+  .curr-delta{font-size:12px;font-weight:500;}
+  .curr-delta.up{color:var(--up);}
+  .curr-delta.down{color:var(--down);}
+  .curr-delta.flat{color:var(--ink-faint);}
+  .spark-wrap{height:44px;margin-top:8px;position:relative;}
+
+  .range-row{display:flex;gap:6px;margin:2px 0 14px;}
+  .range-row button{
+    background:transparent;border:1px solid var(--border);border-radius:20px;
+    padding:5px 12px;font-size:12px;color:var(--ink-soft);cursor:pointer;
+  }
+  .range-row button.active{background:var(--ink);border-color:var(--ink);color:var(--surface);}
+
+  .chart-card{
+    background:var(--surface);border:1px solid var(--border);border-radius:4px;
+    padding:16px;box-shadow:var(--shadow);margin-bottom:14px;
+  }
+  .chart-card h3{margin:0 0 10px;font-size:13px;font-weight:500;color:var(--ink-soft);}
+  .chart-wrap{height:180px;position:relative;}
+
+  section.block{margin-bottom:26px;}
+  section.block h2{font-size:14px;font-weight:500;color:var(--ink-soft);margin:0 0 10px;padding-left:2px;}
+
+  .row{
+    display:flex;align-items:center;gap:10px;
+    background:var(--surface);border:1px solid var(--border);border-top:none;
+    padding:12px 12px;font-size:13px;
+  }
+  .row:first-of-type{border-top:1px solid var(--border);border-radius:4px 4px 0 0;}
+  .row:last-of-type{border-radius:0 0 4px 4px;}
+  .rowlist{box-shadow:var(--shadow);border-radius:4px;}
+  .row .type-tag{
+    font-size:10px;padding:2px 6px;border-radius:3px;flex:none;
+  }
+  .type-tag.stock{background:var(--usd-tint);color:var(--usd-dark);}
+  .type-tag.cash{background:var(--twd-tint);color:var(--twd-dark);}
+  .row .name{flex:1;min-width:0;}
+  .row .name b{display:block;font-size:13px;}
+  .row .name span{display:block;font-size:11px;color:var(--ink-faint);}
+  .row .value{text-align:right;flex:none;min-width:88px;}
+  .row .value b{display:block;font-size:13px;}
+  .row .value span{display:block;font-size:11px;}
+
+  .qty-input{
+    width:88px;padding:7px 8px;border:1px solid var(--border);border-radius:3px;
+    font-size:13px;text-align:right;
+  }
+  .icon-btn{
+    background:none;border:1px solid var(--border);border-radius:3px;
+    width:32px;height:32px;flex:none;cursor:pointer;color:var(--ink-soft);font-size:14px;
+  }
+  .save-btn{
+    background:var(--ink);color:var(--surface);border:none;border-radius:3px;
+    padding:7px 12px;font-size:12px;cursor:pointer;flex:none;
+  }
+
+  .add-form{
+    background:var(--surface);border:1px dashed var(--border);border-radius:4px;
+    padding:14px;margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  }
+  .add-form .full{grid-column:1/-1;}
+  .add-form label{font-size:11px;color:var(--ink-soft);display:block;margin-bottom:4px;}
+  .add-form input,.add-form select{
+    width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:3px;font-size:13px;
+  }
+  .add-form .full button{grid-column:1/-1;}
+
+  table.hist{width:100%;border-collapse:collapse;font-size:12px;background:var(--surface);}
+  table.hist th,table.hist td{padding:8px 6px;border-bottom:1px solid var(--paper-line);text-align:right;}
+  table.hist th:first-child,table.hist td:first-child{text-align:left;}
+  table.hist th{color:var(--ink-soft);font-weight:500;}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:20px;
+    font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50;
+  }
+  .toast.show{opacity:1;}
+
+  .empty{color:var(--ink-faint);font-size:13px;padding:20px;text-align:center;}
+  .updated-note{font-size:11px;color:var(--ink-faint);margin:-6px 0 18px;text-align:right;}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="stamp">帳</div>
+    <h1 class="serif">資產帳本</h1>
+    <p>輸入共用密碼即可查看與編輯</p>
+    <div class="field">
+      <label>使用者</label>
+      <select id="editorName">
+        <option>Mango</option>
+        <option>Polly</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>密碼</label>
+      <input type="password" id="pwdInput" placeholder="輸入共用密碼">
+    </div>
+    <button class="btn" id="loginBtn">登入</button>
+    <div class="error-msg" id="loginError"></div>
+  </div>
+</div>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">帳</div>
+      <div>
+        <h1 class="serif">資產帳本</h1>
+        <div class="who" id="whoLabel"></div>
+      </div>
+    </div>
+    <button class="logout-link" id="logoutBtn">登出</button>
+  </header>
+
+  <nav class="tabs">
+    <button data-tab="dash" class="active">總覽</button>
+    <button data-tab="holdings">持股 / 現金</button>
+    <button data-tab="history">歷史紀錄</button>
+  </nav>
+
+  <div class="updated-note" id="updatedNote"></div>
+
+  <div class="view active" id="view-dash">
+    <div class="cards">
+      <div class="curr-card">
+        <div class="curr-head"><div class="chip twd">台</div><div class="curr-label">台幣總資產</div></div>
+        <div class="curr-total num" id="twdTotal">NT$ --</div>
+        <div class="curr-delta" id="twdDelta">--</div>
+        <div class="spark-wrap"><canvas id="sparkTWD"></canvas></div>
+      </div>
+      <div class="curr-card">
+        <div class="curr-head"><div class="chip usd">美</div><div class="curr-label">美金總資產</div></div>
+        <div class="curr-total num" id="usdTotal">US$ --</div>
+        <div class="curr-delta" id="usdDelta">--</div>
+        <div class="spark-wrap"><canvas id="sparkUSD"></canvas></div>
+      </div>
+    </div>
+
+    <div class="range-row">
+      <button data-range="7" class="active">近7天</button>
+      <button data-range="30">近30天</button>
+      <button data-range="all">全部</button>
+    </div>
+
+    <div class="chart-card">
+      <h3>台幣資產走勢</h3>
+      <div class="chart-wrap"><canvas id="chartTWD" role="img" aria-label="台幣資產走勢折線圖"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>美金資產走勢</h3>
+      <div class="chart-wrap"><canvas id="chartUSD" role="img" aria-label="美金資產走勢折線圖"></canvas></div>
+    </div>
+
+    <section class="block">
+      <h2>持股快覽</h2>
+      <div class="rowlist" id="dashHoldingList"></div>
+    </section>
+  </div>
+
+  <div class="view" id="view-holdings">
+    <section class="block">
+      <h2>股票</h2>
+      <div class="rowlist" id="stockList"></div>
+    </section>
+    <section class="block">
+      <h2>現金</h2>
+      <div class="rowlist" id="cashList"></div>
+    </section>
+    <section class="block">
+      <h2>新增項目</h2>
+      <div class="add-form">
+        <div><label>類型</label>
+          <select id="newType"><option value="股票">股票</option><option value="現金">現金</option></select>
+        </div>
+        <div><label>幣別</label>
+          <select id="newCurrency"><option value="TWD">TWD</option><option value="USD">USD</option></select>
+        </div>
+        <div><label>代號</label><input id="newCode" placeholder="例如 2330.TW / AAPL / CASH-TWD"></div>
+        <div><label>名稱</label><input id="newName" placeholder="例如 台積電"></div>
+        <div><label>數量</label><input id="newQty" type="number" step="any" placeholder="股數或金額"></div>
+        <div class="full"><button class="btn" id="addBtn">新增</button></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="view" id="view-history">
+    <section class="block">
+      <h2>每日快照</h2>
+      <div style="overflow-x:auto;">
+      <table class="hist" id="histTable">
+        <thead><tr><th>日期</th><th>TWD現金</th><th>TWD股票</th><th>TWD總額</th><th>USD現金</th><th>USD股票</th><th>USD總額</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ 設定：把你部署好的 Apps Script 網址貼在這裡 ============ */
+const CONFIG = {
+  API_URL: "https://script.google.com/macros/s/AKfycbyJ961S8Yw75pnK83SB0n2YONgk3N3U7F7saPgnA0EN9zIIxMyQEY_Bzrh5aUxvMgsA/exec",
+};
+/* ================================================================== */
+
+let STATE = { pwd: "", editor: "", holdings: [], prices: [], history: [] };
+
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+function showToast(msg){
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 2200);
+}
+
+function fmtMoney(n, sym){
+  const v = Number(n)||0;
+  return sym + " " + v.toLocaleString(undefined,{maximumFractionDigits:0});
+}
+
+async function apiGet(action){
+  const url = CONFIG.API_URL + "?action=" + encodeURIComponent(action) + "&pwd=" + encodeURIComponent(STATE.pwd);
+  const res = await fetch(url);
+  return res.json();
+}
+async function apiPost(action, payload){
+  const res = await fetch(CONFIG.API_URL, {
+    method:"POST",
+    body: JSON.stringify({ pwd: STATE.pwd, action, payload })
+  });
+  return res.json();
+}
+
+/* ---------- 登入 ---------- */
+$("#loginBtn").addEventListener("click", async () => {
+  const pwd = $("#pwdInput").value.trim();
+  const editor = $("#editorName").value;
+  if(!pwd){ $("#loginError").textContent = "請輸入密碼"; return; }
+  if(CONFIG.API_URL.indexOf("http") !== 0){
+    $("#loginError").textContent = "尚未設定 API 網址，請先在程式碼 CONFIG.API_URL 填入你的 Apps Script 網址";
+    return;
+  }
+  STATE.pwd = pwd; STATE.editor = editor;
+  $("#loginBtn").textContent = "登入中...";
+  const data = await apiGet("dashboard");
+  $("#loginBtn").textContent = "登入";
+  if(!data.ok){
+    $("#loginError").textContent = data.error || "登入失敗，請確認密碼";
+    return;
+  }
+  STATE.holdings = data.holdings; STATE.prices = data.prices; STATE.history = data.history;
+  $("#loginScreen").style.display = "none";
+  $("#app").style.display = "block";
+  $("#whoLabel").textContent = editor + " 已登入";
+  renderAll();
+});
+
+$("#logoutBtn").addEventListener("click", () => {
+  STATE = { pwd:"", editor:"", holdings:[], prices:[], history:[] };
+  $("#app").style.display = "none";
+  $("#loginScreen").style.display = "flex";
+  $("#pwdInput").value = "";
+});
+
+/* ---------- Tabs ---------- */
+$$("nav.tabs button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    $$("nav.tabs button").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    $$(".view").forEach(v=>v.classList.remove("active"));
+    $("#view-"+btn.dataset.tab).classList.add("active");
+  });
+});
+
+/* ---------- 資料處理 ---------- */
+function priceFor(code){
+  return STATE.prices.find(p=>p["代號"]===code);
+}
+
+function computeTotals(){
+  let twdCash=0, twdStock=0, usdCash=0, usdStock=0;
+  STATE.holdings.forEach(h=>{
+    const qty = Number(h["數量"])||0;
+    const cur = h["幣別"];
+    if(h["類型"]==="現金"){
+      if(cur==="TWD") twdCash+=qty; else if(cur==="USD") usdCash+=qty;
+    } else if(h["類型"]==="股票"){
+      const p = priceFor(h["代號"]);
+      const price = p ? Number(p["現價"])||0 : 0;
+      const val = qty*price;
+      if(cur==="TWD") twdStock+=val; else if(cur==="USD") usdStock+=val;
+    }
+  });
+  return {twdCash,twdStock,usdCash,usdStock,twdTotal:twdCash+twdStock,usdTotal:usdCash+usdStock};
+}
+
+function lastTwoHistory(){
+  const h = STATE.history.slice().sort((a,b)=> new Date(a["日期"]) - new Date(b["日期"]));
+  return h;
+}
+
+function renderDeltaEl(el, todayVal, prevVal){
+  if(prevVal===undefined || prevVal===null || isNaN(prevVal)){
+    el.textContent = "尚無比較基準"; el.className="curr-delta flat"; return;
+  }
+  const diff = todayVal - prevVal;
+  const pct = prevVal!==0 ? (diff/prevVal*100) : 0;
+  const sign = diff>0?"▲":diff<0?"▼":"—";
+  el.textContent = sign + " " + Math.abs(diff).toLocaleString(undefined,{maximumFractionDigits:0}) + "（" + pct.toFixed(2) + "%）";
+  el.className = "curr-delta " + (diff>0?"up":diff<0?"down":"flat");
+}
+
+let charts = {};
+function drawLine(canvasId, labels, data, color){
+  if(charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type:'line',
+    data:{ labels, datasets:[{ data, borderColor:color, borderWidth:2, pointRadius:0, tension:0.25, fill:false }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{ mode:'index', intersect:false } },
+      scales:{ x:{ display:false }, y:{ display:false } }
+    }
+  });
+}
+
+function drawFullChart(canvasId, labels, data, color, unitLabel){
+  if(charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(document.getElementById(canvasId), {
+    type:'line',
+    data:{ labels, datasets:[{ label:unitLabel, data, borderColor:color, backgroundColor:color+"1A", borderWidth:2, pointRadius:2, tension:0.2, fill:true }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ ticks:{ color:'#948C70', maxRotation:0, autoSkip:true, font:{size:10} }, grid:{ display:false } },
+        y:{ ticks:{ color:'#948C70', font:{size:10} }, grid:{ color:'#E4DFCB' } }
+      }
+    }
+  });
+}
+
+let currentRange = "7";
+function historySliced(){
+  const h = lastTwoHistory();
+  if(currentRange==="all") return h;
+  const n = Number(currentRange);
+  return h.slice(-n);
+}
+
+function renderCharts(){
+  const h = historySliced();
+  const labels = h.map(r=> new Date(r["日期"]).toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit'}));
+  drawFullChart("chartTWD", labels, h.map(r=>Number(r["TWD資產總額"])||0), "#A8403F", "TWD");
+  drawFullChart("chartUSD", labels, h.map(r=>Number(r["USD資產總額"])||0), "#2B4A6E", "USD");
+
+  const spark = lastTwoHistory().slice(-14);
+  const sLabels = spark.map(r=>r["日期"]);
+  drawLine("sparkTWD", sLabels, spark.map(r=>Number(r["TWD資產總額"])||0), "#A8403F");
+  drawLine("sparkUSD", sLabels, spark.map(r=>Number(r["USD資產總額"])||0), "#2B4A6E");
+}
+
+$$(".range-row button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    $$(".range-row button").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    currentRange = b.dataset.range;
+    renderCharts();
+  });
+});
+
+function renderDashCards(){
+  const t = computeTotals();
+  $("#twdTotal").textContent = fmtMoney(t.twdTotal, "NT$");
+  $("#usdTotal").textContent = fmtMoney(t.usdTotal, "US$");
+
+  const hist = lastTwoHistory();
+  const prevRow = hist.length ? hist[hist.length-1] : null;
+  renderDeltaEl($("#twdDelta"), t.twdTotal, prevRow ? Number(prevRow["TWD資產總額"]) : undefined);
+  renderDeltaEl($("#usdDelta"), t.usdTotal, prevRow ? Number(prevRow["USD資產總額"]) : undefined);
+}
+
+function renderDashHoldingList(){
+  const wrap = $("#dashHoldingList");
+  const stocks = STATE.holdings.filter(h=>h["類型"]==="股票");
+  if(!stocks.length){ wrap.innerHTML = '<div class="empty">尚無股票資料</div>'; return; }
+  wrap.innerHTML = stocks.map(h=>{
+    const p = priceFor(h["代號"]);
+    const price = p ? Number(p["現價"])||0 : 0;
+    const prev = p ? Number(p["昨日收盤"])||price : price;
+    const qty = Number(h["數量"])||0;
+    const val = price*qty;
+    const diffPct = prev ? ((price-prev)/prev*100) : 0;
+    const cls = diffPct>0?"up":diffPct<0?"down":"flat";
+    const sym = h["幣別"]==="TWD" ? "NT$" : "US$";
+    return `<div class="row">
+      <span class="type-tag stock">股票</span>
+      <div class="name"><b>${h["名稱"]||h["代號"]}</b><span>${h["代號"]} · ${qty.toLocaleString()} 股</span></div>
+      <div class="value">
+        <b class="num">${fmtMoney(val, sym)}</b>
+        <span class="num curr-delta ${cls}" style="text-align:right">${diffPct>=0?'▲':'▼'} ${Math.abs(diffPct).toFixed(2)}%</span>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderHoldingsEditor(){
+  const stockWrap = $("#stockList");
+  const cashWrap = $("#cashList");
+  const stocks = STATE.holdings.filter(h=>h["類型"]==="股票");
+  const cash = STATE.holdings.filter(h=>h["類型"]==="現金");
+
+  const rowHtml = (h) => {
+    const sym = h["幣別"]==="TWD" ? "NT$" : "US$";
+    return `<div class="row">
+      <span class="type-tag ${h["類型"]==="股票"?"stock":"cash"}">${h["幣別"]}</span>
+      <div class="name"><b>${h["名稱"]||h["代號"]}</b><span>${h["代號"]}</span></div>
+      <input class="qty-input num" type="number" step="any" value="${h["數量"]}" data-row="${h.__row}">
+      <button class="save-btn" data-row="${h.__row}" data-action="save">儲存</button>
+      <button class="icon-btn" data-row="${h.__row}" data-action="delete" aria-label="刪除">✕</button>
+    </div>`;
+  };
+
+  stockWrap.innerHTML = stocks.length ? stocks.map(rowHtml).join("") : '<div class="empty">尚無股票</div>';
+  cashWrap.innerHTML = cash.length ? cash.map(rowHtml).join("") : '<div class="empty">尚無現金項目</div>';
+
+  $$("#view-holdings [data-action='save']").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const row = btn.dataset.row;
+      const input = document.querySelector(`.qty-input[data-row="${row}"]`);
+      btn.textContent = "儲存中";
+      const r = await apiPost("updateHolding", { row: Number(row), "數量": Number(input.value), editor: STATE.editor });
+      btn.textContent = "儲存";
+      if(r.ok){ showToast("已更新數量"); await reloadData(); } else { showToast(r.error||"更新失敗"); }
+    });
+  });
+  $$("#view-holdings [data-action='delete']").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      if(!confirm("確定要刪除這個項目嗎？")) return;
+      const row = btn.dataset.row;
+      const r = await apiPost("deleteHolding", { row: Number(row) });
+      if(r.ok){ showToast("已刪除"); await reloadData(); } else { showToast(r.error||"刪除失敗"); }
+    });
+  });
+}
+
+$("#addBtn").addEventListener("click", async ()=>{
+  const payload = {
+    "類型": $("#newType").value,
+    "代號": $("#newCode").value.trim(),
+    "名稱": $("#newName").value.trim(),
+    "數量": Number($("#newQty").value)||0,
+    "幣別": $("#newCurrency").value,
+    editor: STATE.editor
+  };
+  if(!payload["代號"]){ showToast("請輸入代號"); return; }
+  const r = await apiPost("addHolding", payload);
+  if(r.ok){
+    showToast("已新增");
+    $("#newCode").value=""; $("#newName").value=""; $("#newQty").value="";
+    await reloadData();
+  } else { showToast(r.error||"新增失敗"); }
+});
+
+function renderHistoryTable(){
+  const tbody = $("#histTable tbody");
+  const h = lastTwoHistory().slice().reverse();
+  if(!h.length){ tbody.innerHTML = '<tr><td colspan="7" class="empty">尚無歷史紀錄</td></tr>'; return; }
+  tbody.innerHTML = h.map(r=>`<tr>
+    <td>${new Date(r["日期"]).toLocaleDateString('zh-TW')}</td>
+    <td class="num">${Number(r["TWD現金"]||0).toLocaleString()}</td>
+    <td class="num">${Number(r["TWD股票市值"]||0).toLocaleString()}</td>
+    <td class="num">${Number(r["TWD資產總額"]||0).toLocaleString()}</td>
+    <td class="num">${Number(r["USD現金"]||0).toLocaleString()}</td>
+    <td class="num">${Number(r["USD股票市值"]||0).toLocaleString()}</td>
+    <td class="num">${Number(r["USD資產總額"]||0).toLocaleString()}</td>
+  </tr>`).join("");
+}
+
+function renderUpdatedNote(){
+  const p = STATE.prices[0];
+  if(p && p["更新時間"]){
+    $("#updatedNote").textContent = "股價更新於 " + new Date(p["更新時間"]).toLocaleString('zh-TW');
+  } else {
+    $("#updatedNote").textContent = "";
+  }
+}
+
+function renderAll(){
+  renderDashCards();
+  renderCharts();
+  renderDashHoldingList();
+  renderHoldingsEditor();
+  renderHistoryTable();
+  renderUpdatedNote();
+}
+
+async function reloadData(){
+  const data = await apiGet("dashboard");
+  if(data.ok){
+    STATE.holdings = data.holdings; STATE.prices = data.prices; STATE.history = data.history;
+    renderAll();
+  }
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
