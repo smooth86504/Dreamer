@@ -102,7 +102,7 @@
   .alloc-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--bg-elev2);margin-bottom:12px;}
   .alloc-bar span{height:100%;}
   .alloc-legend{display:flex;flex-wrap:wrap;gap:10px 0;font-size:13px;}
-  .alloc-legend .item{display:flex;align-items:center;gap:8px;width:50%;}
+  .alloc-legend .item{display:flex;align-items:center;gap:8px;width:100%;}
   .alloc-legend .dot{width:9px;height:9px;border-radius:50%;flex:none;}
   .alloc-legend .val{font-weight:600;margin-left:6px;}
   .alloc-legend .pct{color:var(--text-dim);font-size:12px;margin-left:4px;}
@@ -258,6 +258,12 @@
       </div>
     </div>
 
+    <div class="alloc-card">
+      <h3>台股比例</h3>
+      <div class="alloc-bar" id="twdRatioBar"></div>
+      <div class="alloc-legend" id="twdRatioLegend"></div>
+    </div>
+
     <div class="range-row">
       <button data-range="7" class="active">近7天</button>
       <button data-range="30">近30天</button>
@@ -354,6 +360,22 @@ const CONFIG = {
 /* ============================================================================ */
 
 let STATE = { holdings: [], prices: [], history: [] };
+let fxUsdTwd = null; // 美元兌台幣匯率（來自台灣期交所公開資料）
+const FX_FALLBACK_RATE = 32; // 匯率取得失敗時的備用值
+
+async function loadFxRate(){
+  try{
+    const res = await fetch("https://openapi.taifex.com.tw/v1/DailyForeignExchangeRates");
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : (data.data || []);
+    if(!list.length) return;
+    const latest = list.slice().sort((a,b)=> Number(a["Date"]) - Number(b["Date"])).pop();
+    const rate = Number(latest["USD/NTD"]);
+    if(rate) fxUsdTwd = rate;
+  }catch(err){
+    console.warn("匯率讀取失敗", err);
+  }
+}
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -492,21 +514,58 @@ $$(".range-row button").forEach(b=>{
 
 function renderAllocation(){
   const t = computeTotals();
-  const total = t.twdStock + t.twdCash + t.usdStock + t.usdCash;
+  const rate = fxUsdTwd || FX_FALLBACK_RATE;
+  const usdStockInTwd = t.usdStock * rate;
+  const usdCashInTwd = t.usdCash * rate;
+  const total = t.twdStock + t.twdCash + usdStockInTwd + usdCashInTwd;
   const twdStockPct = total ? (t.twdStock/total*100) : 0;
   const twdCashPct = total ? (t.twdCash/total*100) : 0;
-  const usdStockPct = total ? (t.usdStock/total*100) : 0;
-  const usdCashPct = total ? (t.usdCash/total*100) : 0;
+  const usdStockPct = total ? (usdStockInTwd/total*100) : 0;
+  const usdCashPct = total ? (usdCashInTwd/total*100) : 0;
 
   $("#allocBar").innerHTML = `<span style="width:${twdStockPct}%;background:var(--purple)"></span><span style="width:${twdCashPct}%;background:var(--blue)"></span><span style="width:${usdStockPct}%;background:var(--orange)"></span><span style="width:${usdCashPct}%;background:var(--down)"></span>`;
-  $("#allocTwdStockVal").textContent = "NT$"+Math.round(t.twdStock).toLocaleString();
-  $("#allocTwdCashVal").textContent = "NT$"+Math.round(t.twdCash).toLocaleString();
-  $("#allocUsdStockVal").textContent = "US$"+Math.round(t.usdStock).toLocaleString();
-  $("#allocUsdCashVal").textContent = "US$"+Math.round(t.usdCash).toLocaleString();
+  $("#allocTwdStockVal").textContent = "NT$ "+Math.round(t.twdStock).toLocaleString();
+  $("#allocTwdCashVal").textContent = "NT$ "+Math.round(t.twdCash).toLocaleString();
+  $("#allocUsdStockVal").textContent = "NT$ "+Math.round(usdStockInTwd).toLocaleString()+"（ US$ "+Math.round(t.usdStock).toLocaleString()+" ）";
+  $("#allocUsdCashVal").textContent = "NT$ "+Math.round(usdCashInTwd).toLocaleString()+"（ US$"+Math.round(t.usdCash).toLocaleString()+" ）";
   $("#allocTwdStockPct").textContent = twdStockPct.toFixed(0)+"%";
   $("#allocTwdCashPct").textContent = twdCashPct.toFixed(0)+"%";
   $("#allocUsdStockPct").textContent = usdStockPct.toFixed(0)+"%";
   $("#allocUsdCashPct").textContent = usdCashPct.toFixed(0)+"%";
+}
+
+const TWD_RATIO_PALETTE = ["var(--purple)","var(--blue)","var(--orange)","var(--down)","var(--up)","#C9C0FF"];
+
+function renderTwdStockRatio(){
+  const bar = $("#twdRatioBar");
+  const legend = $("#twdRatioLegend");
+
+  const items = STATE.holdings
+    .filter(h=>h["類型"]==="股票" && h["幣別"]==="TWD")
+    .map(h=>{
+      const p = priceFor(h["代號"]);
+      const price = p ? Number(p["現價"])||0 : 0;
+      const qty = Number(h["數量"])||0;
+      return { name: h["名稱"]||h["代號"], val: price*qty };
+    })
+    .filter(it=>it.val>0);
+
+  const total = items.reduce((s,it)=>s+it.val,0);
+  if(!items.length || !total){
+    bar.innerHTML = "";
+    legend.innerHTML = '<div class="empty">尚無台股資料</div>';
+    return;
+  }
+
+  bar.innerHTML = items.map((it,i)=>{
+    const pct = it.val/total*100;
+    return `<span style="width:${pct}%;background:${TWD_RATIO_PALETTE[i%TWD_RATIO_PALETTE.length]}"></span>`;
+  }).join("");
+
+  legend.innerHTML = items.map((it,i)=>{
+    const pct = it.val/total*100;
+    return `<div class="item"><span class="dot" style="background:${TWD_RATIO_PALETTE[i%TWD_RATIO_PALETTE.length]}"></span>${it.name}<span class="val num">NT$${Math.round(it.val).toLocaleString()}</span><span class="pct">${pct.toFixed(0)}%</span></div>`;
+  }).join("");
 }
 
 function renderDashCards(){
@@ -632,6 +691,7 @@ function renderUpdatedNote(){
 function renderAll(){
   renderDashCards();
   renderAllocation();
+  renderTwdStockRatio();
   renderCharts();
   renderDashHoldingList();
   renderHoldingsEditor();
@@ -655,7 +715,8 @@ async function reloadData(){
     return;
   }
   try{
-    await reloadData();
+    await Promise.all([reloadData(), loadFxRate()]);
+    renderAllocation();
   }catch(err){
     showToast("連線失敗："+err.message);
   }
