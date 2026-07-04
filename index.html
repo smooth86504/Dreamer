@@ -101,8 +101,8 @@
   .alloc-card h3{margin:0 0 14px;font-size:14px;font-weight:700;}
   .alloc-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--bg-elev2);margin-bottom:12px;}
   .alloc-bar span{height:100%;}
-  .alloc-legend{display:flex;justify-content:space-between;font-size:13px;}
-  .alloc-legend .item{display:flex;align-items:center;gap:8px;}
+  .alloc-legend{display:flex;flex-wrap:wrap;gap:10px 0;font-size:13px;}
+  .alloc-legend .item{display:flex;align-items:center;gap:8px;width:50%;}
   .alloc-legend .dot{width:9px;height:9px;border-radius:50%;flex:none;}
   .alloc-legend .val{font-weight:600;margin-left:6px;}
   .alloc-legend .pct{color:var(--text-dim);font-size:12px;margin-left:4px;}
@@ -248,11 +248,13 @@
     </div>
 
     <div class="alloc-card">
-      <h3>資產配置</h3>
+      <h3>資產比例</h3>
       <div class="alloc-bar" id="allocBar"></div>
       <div class="alloc-legend">
-        <div class="item"><span class="dot" style="background:var(--purple)"></span>投資<span class="val num" id="allocStockVal">--</span><span class="pct" id="allocStockPct"></span></div>
-        <div class="item"><span class="dot" style="background:var(--blue)"></span>現金<span class="val num" id="allocCashVal">--</span><span class="pct" id="allocCashPct"></span></div>
+        <div class="item"><span class="dot" style="background:var(--purple)"></span>台股<span class="val num" id="allocTwdStockVal">--</span><span class="pct" id="allocTwdStockPct"></span></div>
+        <div class="item"><span class="dot" style="background:var(--blue)"></span>台幣<span class="val num" id="allocTwdCashVal">--</span><span class="pct" id="allocTwdCashPct"></span></div>
+        <div class="item"><span class="dot" style="background:var(--orange)"></span>美股<span class="val num" id="allocUsdStockVal">--</span><span class="pct" id="allocUsdStockPct"></span></div>
+        <div class="item"><span class="dot" style="background:var(--down)"></span>美金<span class="val num" id="allocUsdCashVal">--</span><span class="pct" id="allocUsdCashPct"></span></div>
       </div>
     </div>
 
@@ -490,21 +492,21 @@ $$(".range-row button").forEach(b=>{
 
 function renderAllocation(){
   const t = computeTotals();
-  const stockVal = t.twdStock + t.usdStock * 0; // 幣別不合併，這裡只用來畫比例，實際金額分開顯示
-  const totalTwdSide = t.twdCash + t.twdStock;
-  const totalUsdSide = t.usdCash + t.usdStock;
-  // 用「股票市值合計占比」與「現金合計占比」畫圖，僅供比例參考（各自幣別金額仍分開顯示於下方文字）
-  const stockShare = t.twdStock + t.usdStock;
-  const cashShare = t.twdCash + t.usdCash;
-  const totalShare = stockShare + cashShare;
-  const stockPct = totalShare ? (stockShare/totalShare*100) : 0;
-  const cashPct = totalShare ? (cashShare/totalShare*100) : 0;
+  const total = t.twdStock + t.twdCash + t.usdStock + t.usdCash;
+  const twdStockPct = total ? (t.twdStock/total*100) : 0;
+  const twdCashPct = total ? (t.twdCash/total*100) : 0;
+  const usdStockPct = total ? (t.usdStock/total*100) : 0;
+  const usdCashPct = total ? (t.usdCash/total*100) : 0;
 
-  $("#allocBar").innerHTML = `<span style="width:${stockPct}%;background:var(--purple)"></span><span style="width:${cashPct}%;background:var(--blue)"></span>`;
-  $("#allocStockVal").textContent = "NT$"+Math.round(t.twdStock).toLocaleString()+" + US$"+Math.round(t.usdStock).toLocaleString();
-  $("#allocCashVal").textContent = "NT$"+Math.round(t.twdCash).toLocaleString()+" + US$"+Math.round(t.usdCash).toLocaleString();
-  $("#allocStockPct").textContent = stockPct.toFixed(0)+"%";
-  $("#allocCashPct").textContent = cashPct.toFixed(0)+"%";
+  $("#allocBar").innerHTML = `<span style="width:${twdStockPct}%;background:var(--purple)"></span><span style="width:${twdCashPct}%;background:var(--blue)"></span><span style="width:${usdStockPct}%;background:var(--orange)"></span><span style="width:${usdCashPct}%;background:var(--down)"></span>`;
+  $("#allocTwdStockVal").textContent = "NT$"+Math.round(t.twdStock).toLocaleString();
+  $("#allocTwdCashVal").textContent = "NT$"+Math.round(t.twdCash).toLocaleString();
+  $("#allocUsdStockVal").textContent = "US$"+Math.round(t.usdStock).toLocaleString();
+  $("#allocUsdCashVal").textContent = "US$"+Math.round(t.usdCash).toLocaleString();
+  $("#allocTwdStockPct").textContent = twdStockPct.toFixed(0)+"%";
+  $("#allocTwdCashPct").textContent = twdCashPct.toFixed(0)+"%";
+  $("#allocUsdStockPct").textContent = usdStockPct.toFixed(0)+"%";
+  $("#allocUsdCashPct").textContent = usdCashPct.toFixed(0)+"%";
 }
 
 function renderDashCards(){
