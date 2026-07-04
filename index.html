@@ -3,281 +3,256 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#EDE8D6">
+<meta name="theme-color" content="#12141B">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="資產帳本">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>資產帳本</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
   :root{
-    --paper:#EBE6D4;
-    --paper-line:#D9D2B8;
-    --surface:#FBF8EF;
-    --ink:#242219;
-    --ink-soft:#68624E;
-    --ink-faint:#948C70;
-    --border:#DAD2B4;
-    --twd:#A8403F;
-    --twd-dark:#7A2C2C;
-    --twd-tint:#F3E2DF;
-    --usd:#2B4A6E;
-    --usd-dark:#1C3350;
-    --usd-tint:#DFE6EE;
-    --up:#B6373A;
-    --down:#2E7D4E;
-    --shadow:0 1px 2px rgba(36,34,25,0.06);
+    --bg:#12141B;
+    --bg-elev:#1B1E27;
+    --bg-elev2:#242733;
+    --border:#2B2E3A;
+    --text:#F1F2F5;
+    --text-dim:#9A9EAC;
+    --text-faint:#666A78;
+    --purple:#9C90E8;
+    --purple-tint:#282450;
+    --purple-text:#C9C0FF;
+    --blue:#5B9BEF;
+    --blue-tint:#1B2A45;
+    --blue-text:#A9CBFF;
+    --up:#FF6B6B;
+    --down:#35D08C;
+    --orange:#F2793D;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
   body{
-    background:var(--paper);
-    background-image:repeating-linear-gradient(to bottom, transparent, transparent 34px, var(--paper-line) 35px);
-    color:var(--ink);
+    background:var(--bg);
+    color:var(--text);
     font-family:'Noto Sans TC',sans-serif;
     min-height:100vh;
     -webkit-font-smoothing:antialiased;
   }
   .num{font-family:'IBM Plex Mono',monospace;font-variant-numeric:tabular-nums;}
-  .serif{font-family:'Noto Serif TC',serif;}
   button, input, select{font-family:inherit;}
+  svg.icon{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 
-  /* ---------- 登入畫面 ---------- */
-  #loginScreen{
-    min-height:100vh;
-    display:flex;align-items:center;justify-content:center;
-    padding:24px;
-  }
-  .login-card{
-    width:100%;max-width:360px;
-    background:var(--surface);
-    border:1px solid var(--border);
-    border-radius:4px;
-    padding:36px 28px;
-    box-shadow:var(--shadow);
-    text-align:center;
-  }
-  .stamp{
-    width:64px;height:64px;border-radius:50%;
-    border:3px double var(--twd);
-    color:var(--twd);
-    display:flex;align-items:center;justify-content:center;
-    font-family:'Noto Serif TC',serif;font-weight:700;font-size:22px;
-    margin:0 auto 18px;
-    transform:rotate(-6deg);
-    letter-spacing:1px;
-  }
-  .login-card h1{font-size:20px;margin:0 0 6px;}
-  .login-card p{color:var(--ink-soft);font-size:13px;margin:0 0 24px;}
-  .field{text-align:left;margin-bottom:14px;}
-  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:6px;}
-  .field input, .field select{
-    width:100%;padding:10px 12px;
-    border:1px solid var(--border);border-radius:3px;
-    background:#fff;color:var(--ink);font-size:14px;
-  }
-  .btn{
-    width:100%;padding:11px;border-radius:3px;border:1px solid var(--ink);
-    background:var(--ink);color:var(--surface);font-size:14px;font-weight:500;
-    cursor:pointer;margin-top:6px;
-  }
-  .btn:active{transform:scale(0.99);}
-  .btn-outline{
-    background:transparent;color:var(--ink);border:1px solid var(--border);
-  }
-  .error-msg{color:var(--twd);font-size:12px;margin-top:10px;min-height:16px;}
+  #app{max-width:720px;margin:0 auto;padding:20px 16px 110px;}
 
-  /* ---------- App 外框 ---------- */
-  #app{display:none;max-width:720px;margin:0 auto;padding:20px 16px 100px;}
   header.topbar{
     display:flex;align-items:center;justify-content:space-between;
-    padding:6px 2px 18px;border-bottom:1px solid var(--paper-line);margin-bottom:20px;
+    padding:4px 2px 20px;
   }
   .brand{display:flex;align-items:center;gap:10px;}
-  .brand .mark{
-    width:34px;height:34px;border-radius:50%;border:2px double var(--twd);
-    color:var(--twd);display:flex;align-items:center;justify-content:center;
-    font-family:'Noto Serif TC',serif;font-weight:700;font-size:13px;transform:rotate(-6deg);
+  .brand .mark{width:30px;height:30px;color:var(--purple);}
+  .brand h1{font-size:17px;margin:0;font-weight:700;letter-spacing:0.2px;}
+  .topbar .icon-btn{
+    background:var(--bg-elev);border:1px solid var(--border);border-radius:12px;
+    width:38px;height:38px;display:flex;align-items:center;justify-content:center;
+    color:var(--text-dim);cursor:pointer;
   }
-  .brand h1{font-size:16px;margin:0;font-weight:500;}
-  .who{font-size:12px;color:var(--ink-soft);}
-  .logout-link{font-size:12px;color:var(--ink-soft);text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;}
-
-  nav.tabs{
-    display:flex;gap:6px;margin-bottom:22px;
-    border-bottom:1px solid var(--paper-line);
-  }
-  nav.tabs button{
-    flex:1;background:none;border:none;padding:10px 4px;
-    font-size:13px;color:var(--ink-soft);cursor:pointer;
-    border-bottom:2px solid transparent;margin-bottom:-1px;
-  }
-  nav.tabs button.active{color:var(--ink);border-bottom-color:var(--ink);font-weight:500;}
 
   .view{display:none;}
   .view.active{display:block;}
 
-  .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;}
-  @media(max-width:520px){.cards{grid-template-columns:1fr;}}
-
+  /* ---------- 資產卡片 ---------- */
+  .cards{display:flex;flex-direction:column;gap:14px;margin-bottom:20px;}
   .curr-card{
-    background:var(--surface);border:1px solid var(--border);border-radius:4px;
-    padding:18px 16px;box-shadow:var(--shadow);
+    background:var(--bg-elev);border:1px solid var(--border);border-radius:20px;
+    padding:20px;
   }
-  .curr-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
-  .chip{
-    width:26px;height:26px;border-radius:50%;flex:none;
-    display:flex;align-items:center;justify-content:center;
-    font-family:'Noto Serif TC',serif;font-weight:700;font-size:12px;
-    transform:rotate(-6deg);
-  }
-  .chip.twd{border:2px double var(--twd);color:var(--twd);}
-  .chip.usd{border:2px double var(--usd);color:var(--usd);}
-  .curr-label{font-size:12px;color:var(--ink-soft);}
-  .curr-total{font-size:26px;font-weight:600;margin:2px 0 4px;}
-  .curr-delta{font-size:12px;font-weight:500;}
-  .curr-delta.up{color:var(--up);}
-  .curr-delta.down{color:var(--down);}
-  .curr-delta.flat{color:var(--ink-faint);}
-  .spark-wrap{height:44px;margin-top:8px;position:relative;}
+  .curr-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .curr-head-left{display:flex;align-items:center;gap:8px;}
+  .flag-dot{width:8px;height:8px;border-radius:50%;}
+  .flag-dot.twd{background:var(--purple);}
+  .flag-dot.usd{background:var(--blue);}
+  .curr-label{font-size:13px;color:var(--text-dim);font-weight:500;}
+  .curr-total{font-size:32px;font-weight:900;margin:2px 0 6px;letter-spacing:-0.5px;}
+  .curr-delta{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:500;padding:3px 9px;border-radius:20px;}
+  .curr-delta.up{color:var(--up);background:rgba(255,107,107,0.12);}
+  .curr-delta.down{color:var(--down);background:rgba(53,208,140,0.12);}
+  .curr-delta.flat{color:var(--text-faint);background:var(--bg-elev2);}
+  .spark-wrap{height:40px;margin-top:10px;position:relative;}
 
-  .range-row{display:flex;gap:6px;margin:2px 0 14px;}
+  .range-row{display:flex;gap:8px;margin:2px 0 14px;}
   .range-row button{
-    background:transparent;border:1px solid var(--border);border-radius:20px;
-    padding:5px 12px;font-size:12px;color:var(--ink-soft);cursor:pointer;
+    background:var(--bg-elev);border:1px solid var(--border);border-radius:20px;
+    padding:6px 14px;font-size:12px;color:var(--text-dim);cursor:pointer;
   }
-  .range-row button.active{background:var(--ink);border-color:var(--ink);color:var(--surface);}
+  .range-row button.active{background:var(--text);border-color:var(--text);color:var(--bg);font-weight:500;}
 
   .chart-card{
-    background:var(--surface);border:1px solid var(--border);border-radius:4px;
-    padding:16px;box-shadow:var(--shadow);margin-bottom:14px;
+    background:var(--bg-elev);border:1px solid var(--border);border-radius:20px;
+    padding:16px;margin-bottom:14px;
   }
-  .chart-card h3{margin:0 0 10px;font-size:13px;font-weight:500;color:var(--ink-soft);}
-  .chart-wrap{height:180px;position:relative;}
+  .chart-card h3{margin:0 0 10px;font-size:13px;font-weight:500;color:var(--text-dim);}
+  .chart-wrap{height:170px;position:relative;}
 
-  section.block{margin-bottom:26px;}
-  section.block h2{font-size:14px;font-weight:500;color:var(--ink-soft);margin:0 0 10px;padding-left:2px;}
+  /* ---------- 資產配置長條 ---------- */
+  .alloc-card{background:var(--bg-elev);border:1px solid var(--border);border-radius:20px;padding:18px;margin-bottom:20px;}
+  .alloc-card h3{margin:0 0 14px;font-size:14px;font-weight:700;}
+  .alloc-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--bg-elev2);margin-bottom:12px;}
+  .alloc-bar span{height:100%;}
+  .alloc-legend{display:flex;justify-content:space-between;font-size:13px;}
+  .alloc-legend .item{display:flex;align-items:center;gap:8px;}
+  .alloc-legend .dot{width:9px;height:9px;border-radius:50%;flex:none;}
+  .alloc-legend .val{font-weight:600;margin-left:6px;}
+  .alloc-legend .pct{color:var(--text-dim);font-size:12px;margin-left:4px;}
 
+  section.block{margin-bottom:24px;}
+  section.block h2{font-size:14px;font-weight:700;margin:0 0 10px;padding-left:2px;}
+
+  .rowlist{background:var(--bg-elev);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
   .row{
     display:flex;align-items:center;gap:10px;
-    background:var(--surface);border:1px solid var(--border);border-top:none;
-    padding:12px 12px;font-size:13px;
+    padding:13px 14px;font-size:13px;border-bottom:1px solid var(--border);
   }
-  .row:first-of-type{border-top:1px solid var(--border);border-radius:4px 4px 0 0;}
-  .row:last-of-type{border-radius:0 0 4px 4px;}
-  .rowlist{box-shadow:var(--shadow);border-radius:4px;}
+  .row:last-child{border-bottom:none;}
   .row .type-tag{
-    font-size:10px;padding:2px 6px;border-radius:3px;flex:none;
+    width:34px;height:34px;border-radius:10px;flex:none;
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
   }
-  .type-tag.stock{background:var(--usd-tint);color:var(--usd-dark);}
-  .type-tag.cash{background:var(--twd-tint);color:var(--twd-dark);}
+  .type-tag.stock{background:var(--purple-tint);color:var(--purple-text);}
+  .type-tag.cash{background:var(--blue-tint);color:var(--blue-text);}
   .row .name{flex:1;min-width:0;}
-  .row .name b{display:block;font-size:13px;}
-  .row .name span{display:block;font-size:11px;color:var(--ink-faint);}
-  .row .value{text-align:right;flex:none;min-width:88px;}
+  .row .name b{display:block;font-size:13px;font-weight:600;}
+  .row .name span{display:block;font-size:11px;color:var(--text-faint);margin-top:2px;}
+  .row .value{text-align:right;flex:none;min-width:90px;}
   .row .value b{display:block;font-size:13px;}
-  .row .value span{display:block;font-size:11px;}
+  .row .value .delta{display:block;font-size:11px;margin-top:2px;}
+  .delta.up{color:var(--up);}
+  .delta.down{color:var(--down);}
+  .delta.flat{color:var(--text-faint);}
 
   .qty-input{
-    width:88px;padding:7px 8px;border:1px solid var(--border);border-radius:3px;
-    font-size:13px;text-align:right;
+    width:84px;padding:8px 9px;border:1px solid var(--border);border-radius:8px;
+    font-size:13px;text-align:right;background:var(--bg-elev2);color:var(--text);
   }
-  .icon-btn{
-    background:none;border:1px solid var(--border);border-radius:3px;
-    width:32px;height:32px;flex:none;cursor:pointer;color:var(--ink-soft);font-size:14px;
+  .icon-mini-btn{
+    background:var(--bg-elev2);border:1px solid var(--border);border-radius:8px;
+    width:32px;height:32px;flex:none;cursor:pointer;color:var(--text-dim);font-size:13px;
+    display:flex;align-items:center;justify-content:center;
   }
   .save-btn{
-    background:var(--ink);color:var(--surface);border:none;border-radius:3px;
-    padding:7px 12px;font-size:12px;cursor:pointer;flex:none;
+    background:var(--text);color:var(--bg);border:none;border-radius:8px;
+    padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;flex:none;
+  }
+
+  .editor-select-row{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--bg-elev);border:1px solid var(--border);border-radius:14px;
+    padding:12px 14px;margin-bottom:18px;
+  }
+  .editor-select-row label{font-size:12px;color:var(--text-dim);}
+  .editor-select-row select{
+    background:var(--bg-elev2);color:var(--text);border:1px solid var(--border);
+    border-radius:8px;padding:7px 10px;font-size:13px;
   }
 
   .add-form{
-    background:var(--surface);border:1px dashed var(--border);border-radius:4px;
+    background:var(--bg-elev);border:1px dashed var(--border);border-radius:16px;
     padding:14px;margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;
   }
   .add-form .full{grid-column:1/-1;}
-  .add-form label{font-size:11px;color:var(--ink-soft);display:block;margin-bottom:4px;}
+  .add-form label{font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;}
   .add-form input,.add-form select{
-    width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:3px;font-size:13px;
+    width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;
+    background:var(--bg-elev2);color:var(--text);
   }
-  .add-form .full button{grid-column:1/-1;}
+  .btn{
+    padding:11px;border-radius:10px;border:none;
+    background:var(--text);color:var(--bg);font-size:14px;font-weight:700;
+    cursor:pointer;
+  }
 
-  table.hist{width:100%;border-collapse:collapse;font-size:12px;background:var(--surface);}
-  table.hist th,table.hist td{padding:8px 6px;border-bottom:1px solid var(--paper-line);text-align:right;}
+  table.hist{width:100%;border-collapse:collapse;font-size:12px;}
+  table.hist th,table.hist td{padding:10px 6px;border-bottom:1px solid var(--border);text-align:right;}
   table.hist th:first-child,table.hist td:first-child{text-align:left;}
-  table.hist th{color:var(--ink-soft);font-weight:500;}
+  table.hist th{color:var(--text-dim);font-weight:500;}
+
+  /* ---------- 底部導覽 + 浮動按鈕 ---------- */
+  .tabbar-wrap{
+    position:fixed;bottom:0;left:0;right:0;
+    display:flex;justify-content:center;padding:0 16px 22px;
+    pointer-events:none;
+  }
+  .tabbar{
+    pointer-events:auto;
+    display:flex;gap:4px;background:var(--bg-elev);border:1px solid var(--border);
+    border-radius:24px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,0.35);
+  }
+  .tabbar button{
+    background:none;border:none;width:52px;height:44px;border-radius:18px;
+    display:flex;align-items:center;justify-content:center;color:var(--text-faint);cursor:pointer;
+  }
+  .tabbar button.active{background:var(--bg-elev2);color:var(--text);}
+  .fab{
+    position:fixed;right:20px;bottom:32px;
+    width:56px;height:56px;border-radius:50%;background:var(--orange);color:#fff;
+    border:none;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 20px rgba(242,121,61,0.4);cursor:pointer;z-index:20;
+  }
 
   .toast{
-    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
-    background:var(--ink);color:var(--surface);padding:10px 18px;border-radius:20px;
-    font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50;
+    position:fixed;bottom:110px;left:50%;transform:translateX(-50%);
+    background:var(--text);color:var(--bg);padding:10px 18px;border-radius:20px;
+    font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50;font-weight:500;
   }
   .toast.show{opacity:1;}
 
-  .empty{color:var(--ink-faint);font-size:13px;padding:20px;text-align:center;}
-  .updated-note{font-size:11px;color:var(--ink-faint);margin:-6px 0 18px;text-align:right;}
+  .empty{color:var(--text-faint);font-size:13px;padding:24px;text-align:center;}
+  .updated-note{font-size:11px;color:var(--text-faint);margin:-8px 0 18px;text-align:right;}
 </style>
 </head>
 <body>
 
-<div id="loginScreen">
-  <div class="login-card">
-    <div class="stamp">帳</div>
-    <h1 class="serif">資產帳本</h1>
-    <p>輸入共用密碼即可查看與編輯</p>
-    <div class="field">
-      <label>使用者</label>
-      <select id="editorName">
-        <option>Mango</option>
-        <option>Polly</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>密碼</label>
-      <input type="password" id="pwdInput" placeholder="輸入共用密碼">
-    </div>
-    <button class="btn" id="loginBtn">登入</button>
-    <div class="error-msg" id="loginError"></div>
-  </div>
-</div>
-
 <div id="app">
   <header class="topbar">
     <div class="brand">
-      <div class="mark">帳</div>
-      <div>
-        <h1 class="serif">資產帳本</h1>
-        <div class="who" id="whoLabel"></div>
-      </div>
+      <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 18V11"/><path d="M11 18V6"/><path d="M18 18V14"/></svg>
+      <h1>資產帳本</h1>
     </div>
-    <button class="logout-link" id="logoutBtn">登出</button>
+    <button class="icon-btn" data-tab="history" aria-label="歷史紀錄">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    </button>
   </header>
-
-  <nav class="tabs">
-    <button data-tab="dash" class="active">總覽</button>
-    <button data-tab="holdings">持股 / 現金</button>
-    <button data-tab="history">歷史紀錄</button>
-  </nav>
 
   <div class="updated-note" id="updatedNote"></div>
 
   <div class="view active" id="view-dash">
     <div class="cards">
       <div class="curr-card">
-        <div class="curr-head"><div class="chip twd">台</div><div class="curr-label">台幣總資產</div></div>
+        <div class="curr-head">
+          <div class="curr-head-left"><span class="flag-dot twd"></span><span class="curr-label">台灣資產</span></div>
+        </div>
         <div class="curr-total num" id="twdTotal">NT$ --</div>
-        <div class="curr-delta" id="twdDelta">--</div>
+        <div class="curr-delta flat" id="twdDelta">--</div>
         <div class="spark-wrap"><canvas id="sparkTWD"></canvas></div>
       </div>
       <div class="curr-card">
-        <div class="curr-head"><div class="chip usd">美</div><div class="curr-label">美金總資產</div></div>
+        <div class="curr-head">
+          <div class="curr-head-left"><span class="flag-dot usd"></span><span class="curr-label">美國資產</span></div>
+        </div>
         <div class="curr-total num" id="usdTotal">US$ --</div>
-        <div class="curr-delta" id="usdDelta">--</div>
+        <div class="curr-delta flat" id="usdDelta">--</div>
         <div class="spark-wrap"><canvas id="sparkUSD"></canvas></div>
+      </div>
+    </div>
+
+    <div class="alloc-card">
+      <h3>資產配置</h3>
+      <div class="alloc-bar" id="allocBar"></div>
+      <div class="alloc-legend">
+        <div class="item"><span class="dot" style="background:var(--purple)"></span>投資<span class="val num" id="allocStockVal">--</span><span class="pct" id="allocStockPct"></span></div>
+        <div class="item"><span class="dot" style="background:var(--blue)"></span>現金<span class="val num" id="allocCashVal">--</span><span class="pct" id="allocCashPct"></span></div>
       </div>
     </div>
 
@@ -303,6 +278,13 @@
   </div>
 
   <div class="view" id="view-holdings">
+    <div class="editor-select-row">
+      <label>目前編輯者</label>
+      <select id="editorName">
+        <option>芒果</option>
+        <option>脆脆</option>
+      </select>
+    </div>
     <section class="block">
       <h2>股票</h2>
       <div class="rowlist" id="stockList"></div>
@@ -323,7 +305,7 @@
         <div><label>代號</label><input id="newCode" placeholder="例如 2330.TW / AAPL / CASH-TWD"></div>
         <div><label>名稱</label><input id="newName" placeholder="例如 台積電"></div>
         <div><label>數量</label><input id="newQty" type="number" step="any" placeholder="股數或金額"></div>
-        <div class="full"><button class="btn" id="addBtn">新增</button></div>
+        <div class="full"><button class="btn" id="addBtn" style="width:100%">新增</button></div>
       </div>
     </section>
   </div>
@@ -341,16 +323,35 @@
   </div>
 </div>
 
+<button class="fab" id="fabEdit" aria-label="編輯持股">
+  <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"/></svg>
+</button>
+
+<div class="tabbar-wrap">
+  <div class="tabbar">
+    <button data-tab="dash" class="active" aria-label="總覽">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M4 11 12 4l8 7"/><path d="M6 10v9h12v-9"/></svg>
+    </button>
+    <button data-tab="holdings" aria-label="持股">
+      <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/></svg>
+    </button>
+    <button data-tab="history" aria-label="歷史">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    </button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
-/* ============ 設定：把你部署好的 Apps Script 網址貼在這裡 ============ */
+/* ============ 設定：把你部署好的 Apps Script 網址與共用密碼貼在這裡 ============ */
 const CONFIG = {
   API_URL: "https://script.google.com/macros/s/AKfycbyJ961S8Yw75pnK83SB0n2YONgk3N3U7F7saPgnA0EN9zIIxMyQEY_Bzrh5aUxvMgsA/exec",
+  SHARED_PASSWORD: "12345678",
 };
-/* ================================================================== */
+/* ============================================================================ */
 
-let STATE = { pwd: "", editor: "", holdings: [], prices: [], history: [] };
+let STATE = { holdings: [], prices: [], history: [] };
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => Array.from(document.querySelectorAll(sel));
@@ -368,58 +369,28 @@ function fmtMoney(n, sym){
 }
 
 async function apiGet(action){
-  const url = CONFIG.API_URL + "?action=" + encodeURIComponent(action) + "&pwd=" + encodeURIComponent(STATE.pwd);
+  const url = CONFIG.API_URL + "?action=" + encodeURIComponent(action) + "&pwd=" + encodeURIComponent(CONFIG.SHARED_PASSWORD);
   const res = await fetch(url);
   return res.json();
 }
 async function apiPost(action, payload){
   const res = await fetch(CONFIG.API_URL, {
     method:"POST",
-    body: JSON.stringify({ pwd: STATE.pwd, action, payload })
+    body: JSON.stringify({ pwd: CONFIG.SHARED_PASSWORD, action, payload })
   });
   return res.json();
 }
 
-/* ---------- 登入 ---------- */
-$("#loginBtn").addEventListener("click", async () => {
-  const pwd = $("#pwdInput").value.trim();
-  const editor = $("#editorName").value;
-  if(!pwd){ $("#loginError").textContent = "請輸入密碼"; return; }
-  if(CONFIG.API_URL.indexOf("http") !== 0){
-    $("#loginError").textContent = "尚未設定 API 網址，請先在程式碼 CONFIG.API_URL 填入你的 Apps Script 網址";
-    return;
-  }
-  STATE.pwd = pwd; STATE.editor = editor;
-  $("#loginBtn").textContent = "登入中...";
-  const data = await apiGet("dashboard");
-  $("#loginBtn").textContent = "登入";
-  if(!data.ok){
-    $("#loginError").textContent = data.error || "登入失敗，請確認密碼";
-    return;
-  }
-  STATE.holdings = data.holdings; STATE.prices = data.prices; STATE.history = data.history;
-  $("#loginScreen").style.display = "none";
-  $("#app").style.display = "block";
-  $("#whoLabel").textContent = editor + " 已登入";
-  renderAll();
-});
-
-$("#logoutBtn").addEventListener("click", () => {
-  STATE = { pwd:"", editor:"", holdings:[], prices:[], history:[] };
-  $("#app").style.display = "none";
-  $("#loginScreen").style.display = "flex";
-  $("#pwdInput").value = "";
-});
-
 /* ---------- Tabs ---------- */
-$$("nav.tabs button").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    $$("nav.tabs button").forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-    $$(".view").forEach(v=>v.classList.remove("active"));
-    $("#view-"+btn.dataset.tab).classList.add("active");
-  });
+function switchTab(tabName){
+  $$("[data-tab]").forEach(b=>b.classList.toggle("active", b.dataset.tab===tabName));
+  $$(".view").forEach(v=>v.classList.remove("active"));
+  $("#view-"+tabName).classList.add("active");
+}
+$$("[data-tab]").forEach(btn=>{
+  btn.addEventListener("click", ()=> switchTab(btn.dataset.tab));
 });
+$("#fabEdit").addEventListener("click", ()=> switchTab("holdings"));
 
 /* ---------- 資料處理 ---------- */
 function priceFor(code){
@@ -444,8 +415,7 @@ function computeTotals(){
 }
 
 function lastTwoHistory(){
-  const h = STATE.history.slice().sort((a,b)=> new Date(a["日期"]) - new Date(b["日期"]));
-  return h;
+  return STATE.history.slice().sort((a,b)=> new Date(a["日期"]) - new Date(b["日期"]));
 }
 
 function renderDeltaEl(el, todayVal, prevVal){
@@ -477,13 +447,13 @@ function drawFullChart(canvasId, labels, data, color, unitLabel){
   if(charts[canvasId]) charts[canvasId].destroy();
   charts[canvasId] = new Chart(document.getElementById(canvasId), {
     type:'line',
-    data:{ labels, datasets:[{ label:unitLabel, data, borderColor:color, backgroundColor:color+"1A", borderWidth:2, pointRadius:2, tension:0.2, fill:true }] },
+    data:{ labels, datasets:[{ label:unitLabel, data, borderColor:color, backgroundColor:color+"26", borderWidth:2, pointRadius:2, tension:0.2, fill:true }] },
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{display:false} },
       scales:{
-        x:{ ticks:{ color:'#948C70', maxRotation:0, autoSkip:true, font:{size:10} }, grid:{ display:false } },
-        y:{ ticks:{ color:'#948C70', font:{size:10} }, grid:{ color:'#E4DFCB' } }
+        x:{ ticks:{ color:'#666A78', maxRotation:0, autoSkip:true, font:{size:10} }, grid:{ display:false } },
+        y:{ ticks:{ color:'#666A78', font:{size:10} }, grid:{ color:'#2B2E3A' } }
       }
     }
   });
@@ -500,13 +470,13 @@ function historySliced(){
 function renderCharts(){
   const h = historySliced();
   const labels = h.map(r=> new Date(r["日期"]).toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit'}));
-  drawFullChart("chartTWD", labels, h.map(r=>Number(r["TWD資產總額"])||0), "#A8403F", "TWD");
-  drawFullChart("chartUSD", labels, h.map(r=>Number(r["USD資產總額"])||0), "#2B4A6E", "USD");
+  drawFullChart("chartTWD", labels, h.map(r=>Number(r["TWD資產總額"])||0), "#9C90E8", "TWD");
+  drawFullChart("chartUSD", labels, h.map(r=>Number(r["USD資產總額"])||0), "#5B9BEF", "USD");
 
   const spark = lastTwoHistory().slice(-14);
   const sLabels = spark.map(r=>r["日期"]);
-  drawLine("sparkTWD", sLabels, spark.map(r=>Number(r["TWD資產總額"])||0), "#A8403F");
-  drawLine("sparkUSD", sLabels, spark.map(r=>Number(r["USD資產總額"])||0), "#2B4A6E");
+  drawLine("sparkTWD", sLabels, spark.map(r=>Number(r["TWD資產總額"])||0), "#9C90E8");
+  drawLine("sparkUSD", sLabels, spark.map(r=>Number(r["USD資產總額"])||0), "#5B9BEF");
 }
 
 $$(".range-row button").forEach(b=>{
@@ -517,6 +487,25 @@ $$(".range-row button").forEach(b=>{
     renderCharts();
   });
 });
+
+function renderAllocation(){
+  const t = computeTotals();
+  const stockVal = t.twdStock + t.usdStock * 0; // 幣別不合併，這裡只用來畫比例，實際金額分開顯示
+  const totalTwdSide = t.twdCash + t.twdStock;
+  const totalUsdSide = t.usdCash + t.usdStock;
+  // 用「股票市值合計占比」與「現金合計占比」畫圖，僅供比例參考（各自幣別金額仍分開顯示於下方文字）
+  const stockShare = t.twdStock + t.usdStock;
+  const cashShare = t.twdCash + t.usdCash;
+  const totalShare = stockShare + cashShare;
+  const stockPct = totalShare ? (stockShare/totalShare*100) : 0;
+  const cashPct = totalShare ? (cashShare/totalShare*100) : 0;
+
+  $("#allocBar").innerHTML = `<span style="width:${stockPct}%;background:var(--purple)"></span><span style="width:${cashPct}%;background:var(--blue)"></span>`;
+  $("#allocStockVal").textContent = "NT$"+Math.round(t.twdStock).toLocaleString()+" + US$"+Math.round(t.usdStock).toLocaleString();
+  $("#allocCashVal").textContent = "NT$"+Math.round(t.twdCash).toLocaleString()+" + US$"+Math.round(t.usdCash).toLocaleString();
+  $("#allocStockPct").textContent = stockPct.toFixed(0)+"%";
+  $("#allocCashPct").textContent = cashPct.toFixed(0)+"%";
+}
 
 function renderDashCards(){
   const t = computeTotals();
@@ -543,11 +532,11 @@ function renderDashHoldingList(){
     const cls = diffPct>0?"up":diffPct<0?"down":"flat";
     const sym = h["幣別"]==="TWD" ? "NT$" : "US$";
     return `<div class="row">
-      <span class="type-tag stock">股票</span>
+      <span class="type-tag stock">${h["幣別"]}</span>
       <div class="name"><b>${h["名稱"]||h["代號"]}</b><span>${h["代號"]} · ${qty.toLocaleString()} 股</span></div>
       <div class="value">
         <b class="num">${fmtMoney(val, sym)}</b>
-        <span class="num curr-delta ${cls}" style="text-align:right">${diffPct>=0?'▲':'▼'} ${Math.abs(diffPct).toFixed(2)}%</span>
+        <span class="num delta ${cls}">${diffPct>=0?'▲':'▼'} ${Math.abs(diffPct).toFixed(2)}%</span>
       </div>
     </div>`;
   }).join("");
@@ -560,13 +549,14 @@ function renderHoldingsEditor(){
   const cash = STATE.holdings.filter(h=>h["類型"]==="現金");
 
   const rowHtml = (h) => {
-    const sym = h["幣別"]==="TWD" ? "NT$" : "US$";
     return `<div class="row">
       <span class="type-tag ${h["類型"]==="股票"?"stock":"cash"}">${h["幣別"]}</span>
       <div class="name"><b>${h["名稱"]||h["代號"]}</b><span>${h["代號"]}</span></div>
       <input class="qty-input num" type="number" step="any" value="${h["數量"]}" data-row="${h.__row}">
       <button class="save-btn" data-row="${h.__row}" data-action="save">儲存</button>
-      <button class="icon-btn" data-row="${h.__row}" data-action="delete" aria-label="刪除">✕</button>
+      <button class="icon-mini-btn" data-row="${h.__row}" data-action="delete" aria-label="刪除">
+        <svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
     </div>`;
   };
 
@@ -577,8 +567,9 @@ function renderHoldingsEditor(){
     btn.addEventListener("click", async ()=>{
       const row = btn.dataset.row;
       const input = document.querySelector(`.qty-input[data-row="${row}"]`);
+      const editor = $("#editorName").value;
       btn.textContent = "儲存中";
-      const r = await apiPost("updateHolding", { row: Number(row), "數量": Number(input.value), editor: STATE.editor });
+      const r = await apiPost("updateHolding", { row: Number(row), "數量": Number(input.value), editor });
       btn.textContent = "儲存";
       if(r.ok){ showToast("已更新數量"); await reloadData(); } else { showToast(r.error||"更新失敗"); }
     });
@@ -594,13 +585,14 @@ function renderHoldingsEditor(){
 }
 
 $("#addBtn").addEventListener("click", async ()=>{
+  const editor = $("#editorName").value;
   const payload = {
     "類型": $("#newType").value,
     "代號": $("#newCode").value.trim(),
     "名稱": $("#newName").value.trim(),
     "數量": Number($("#newQty").value)||0,
     "幣別": $("#newCurrency").value,
-    editor: STATE.editor
+    editor
   };
   if(!payload["代號"]){ showToast("請輸入代號"); return; }
   const r = await apiPost("addHolding", payload);
@@ -637,6 +629,7 @@ function renderUpdatedNote(){
 
 function renderAll(){
   renderDashCards();
+  renderAllocation();
   renderCharts();
   renderDashHoldingList();
   renderHoldingsEditor();
@@ -649,8 +642,22 @@ async function reloadData(){
   if(data.ok){
     STATE.holdings = data.holdings; STATE.prices = data.prices; STATE.history = data.history;
     renderAll();
+  } else {
+    showToast(data.error || "讀取失敗");
   }
 }
+
+(async function init(){
+  if(CONFIG.API_URL.indexOf("http") !== 0){
+    showToast("尚未設定 API 網址，請先在程式碼 CONFIG.API_URL 填入你的 Apps Script 網址");
+    return;
+  }
+  try{
+    await reloadData();
+  }catch(err){
+    showToast("連線失敗："+err.message);
+  }
+})();
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
