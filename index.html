@@ -210,9 +210,27 @@
 
   .empty{color:var(--text-faint);font-size:13px;padding:24px;text-align:center;}
   .updated-note{font-size:11px;color:var(--text-faint);margin:-8px 0 18px;text-align:right;}
+
+  .loading-overlay{
+    position:fixed;inset:0;z-index:100;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    background:var(--bg);
+  }
+  .loading-overlay .spinner{
+    width:34px;height:34px;border-radius:50%;
+    border:3px solid var(--bg-elev2);border-top-color:var(--purple);
+    animation:spin 0.8s linear infinite;
+  }
+  .loading-overlay span{font-size:13px;color:var(--text-dim);}
+  @keyframes spin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <span>資料讀取中...</span>
+</div>
 
 <div id="app">
   <header class="topbar">
@@ -279,10 +297,6 @@
       <div class="chart-wrap"><canvas id="chartUSD" role="img" aria-label="美金資產走勢折線圖"></canvas></div>
     </div>
 
-    <section class="block">
-      <h2>持股快覽</h2>
-      <div class="rowlist" id="dashHoldingList"></div>
-    </section>
   </div>
 
   <div class="view" id="view-holdings">
@@ -564,7 +578,7 @@ function renderTwdStockRatio(){
 
   legend.innerHTML = items.map((it,i)=>{
     const pct = it.val/total*100;
-    return `<div class="item"><span class="dot" style="background:${TWD_RATIO_PALETTE[i%TWD_RATIO_PALETTE.length]}"></span>${it.name}<span class="val num">NT$${Math.round(it.val).toLocaleString()}</span><span class="pct">${pct.toFixed(0)}%</span></div>`;
+    return `<div class="item"><span class="dot" style="background:${TWD_RATIO_PALETTE[i%TWD_RATIO_PALETTE.length]}"></span>${it.name}<span class="val num">NT$ ${Math.round(it.val).toLocaleString()}</span><span class="pct">${pct.toFixed(0)}%</span></div>`;
   }).join("");
 }
 
@@ -579,29 +593,7 @@ function renderDashCards(){
   renderDeltaEl($("#usdDelta"), t.usdTotal, prevRow ? Number(prevRow["USD資產總額"]) : undefined);
 }
 
-function renderDashHoldingList(){
-  const wrap = $("#dashHoldingList");
-  const stocks = STATE.holdings.filter(h=>h["類型"]==="股票");
-  if(!stocks.length){ wrap.innerHTML = '<div class="empty">尚無股票資料</div>'; return; }
-  wrap.innerHTML = stocks.map(h=>{
-    const p = priceFor(h["代號"]);
-    const price = p ? Number(p["現價"])||0 : 0;
-    const prev = p ? Number(p["昨日收盤"])||price : price;
-    const qty = Number(h["數量"])||0;
-    const val = price*qty;
-    const diffPct = prev ? ((price-prev)/prev*100) : 0;
-    const cls = diffPct>0?"up":diffPct<0?"down":"flat";
-    const sym = h["幣別"]==="TWD" ? "NT$" : "US$";
-    return `<div class="row">
-      <span class="type-tag stock">${h["幣別"]}</span>
-      <div class="name"><b>${h["名稱"]||h["代號"]}</b><span>${h["代號"]} · ${qty.toLocaleString()} 股</span></div>
-      <div class="value">
-        <b class="num">${fmtMoney(val, sym)}</b>
-        <span class="num delta ${cls}">${diffPct>=0?'▲':'▼'} ${Math.abs(diffPct).toFixed(2)}%</span>
-      </div>
-    </div>`;
-  }).join("");
-}
+let editingRows = new Set();
 
 function renderHoldingsEditor(){
   const stockWrap = $("#stockList");
@@ -610,13 +602,48 @@ function renderHoldingsEditor(){
   const cash = STATE.holdings.filter(h=>h["類型"]==="現金");
 
   const rowHtml = (h) => {
+    const isStock = h["類型"]==="股票";
+    const sym = h["幣別"]==="TWD" ? "NT$" : "US$";
+    const qty = Number(h["數量"])||0;
+
+    if(editingRows.has(String(h.__row))){
+      return `<div class="row">
+        <span class="type-tag ${isStock?"stock":"cash"}">${h["幣別"]}</span>
+        <div class="name"><b>${h["名稱"]||h["代號"]}</b><span>${h["代號"]}</span></div>
+        <input class="qty-input num" type="number" step="any" value="${h["數量"]}" data-row="${h.__row}">
+        <button class="save-btn" data-row="${h.__row}" data-action="save">儲存</button>
+        <button class="icon-mini-btn" data-row="${h.__row}" data-action="cancel" aria-label="取消">
+          <svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+        <button class="icon-mini-btn" data-row="${h.__row}" data-action="delete" aria-label="刪除">
+          <svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+        </button>
+      </div>`;
+    }
+
+    let infoHtml;
+    if(isStock){
+      const p = priceFor(h["代號"]);
+      const price = p ? Number(p["現價"])||0 : 0;
+      const prev = p ? Number(p["昨日收盤"])||price : price;
+      const val = price*qty;
+      const diffPct = prev ? ((price-prev)/prev*100) : 0;
+      const cls = diffPct>0?"up":diffPct<0?"down":"flat";
+      infoHtml = `<div class="name"><b>${h["名稱"]||h["代號"]}</b><span>${h["代號"]} · 現價 ${fmtMoney(price,sym)} · ${qty.toLocaleString()} 股</span></div>
+        <div class="value">
+          <b class="num">${fmtMoney(val, sym)}</b>
+          <span class="num delta ${cls}">${diffPct>=0?'▲':'▼'} ${Math.abs(diffPct).toFixed(2)}%</span>
+        </div>`;
+    } else {
+      infoHtml = `<div class="name"><b>${h["名稱"]||h["代號"]}</b><span>${h["代號"]}</span></div>
+        <div class="value"><b class="num">${fmtMoney(qty, sym)}</b></div>`;
+    }
+
     return `<div class="row">
-      <span class="type-tag ${h["類型"]==="股票"?"stock":"cash"}">${h["幣別"]}</span>
-      <div class="name"><b>${h["名稱"]||h["代號"]}</b><span>${h["代號"]}</span></div>
-      <input class="qty-input num" type="number" step="any" value="${h["數量"]}" data-row="${h.__row}">
-      <button class="save-btn" data-row="${h.__row}" data-action="save">儲存</button>
-      <button class="icon-mini-btn" data-row="${h.__row}" data-action="delete" aria-label="刪除">
-        <svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      <span class="type-tag ${isStock?"stock":"cash"}">${h["幣別"]}</span>
+      ${infoHtml}
+      <button class="icon-mini-btn" data-row="${h.__row}" data-action="edit" aria-label="編輯">
+        <svg class="icon" style="width:14px;height:14px" viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"/></svg>
       </button>
     </div>`;
   };
@@ -624,6 +651,18 @@ function renderHoldingsEditor(){
   stockWrap.innerHTML = stocks.length ? stocks.map(rowHtml).join("") : '<div class="empty">尚無股票</div>';
   cashWrap.innerHTML = cash.length ? cash.map(rowHtml).join("") : '<div class="empty">尚無現金項目</div>';
 
+  $$("#view-holdings [data-action='edit']").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      editingRows.add(btn.dataset.row);
+      renderHoldingsEditor();
+    });
+  });
+  $$("#view-holdings [data-action='cancel']").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      editingRows.delete(btn.dataset.row);
+      renderHoldingsEditor();
+    });
+  });
   $$("#view-holdings [data-action='save']").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
       const row = btn.dataset.row;
@@ -632,7 +671,7 @@ function renderHoldingsEditor(){
       btn.textContent = "儲存中";
       const r = await apiPost("updateHolding", { row: Number(row), "數量": Number(input.value), editor });
       btn.textContent = "儲存";
-      if(r.ok){ showToast("已更新數量"); await reloadData(); } else { showToast(r.error||"更新失敗"); }
+      if(r.ok){ editingRows.delete(row); showToast("已更新數量"); await reloadData(); } else { showToast(r.error||"更新失敗"); }
     });
   });
   $$("#view-holdings [data-action='delete']").forEach(btn=>{
@@ -640,7 +679,7 @@ function renderHoldingsEditor(){
       if(!confirm("確定要刪除這個項目嗎？")) return;
       const row = btn.dataset.row;
       const r = await apiPost("deleteHolding", { row: Number(row) });
-      if(r.ok){ showToast("已刪除"); await reloadData(); } else { showToast(r.error||"刪除失敗"); }
+      if(r.ok){ editingRows.delete(row); showToast("已刪除"); await reloadData(); } else { showToast(r.error||"刪除失敗"); }
     });
   });
 }
@@ -693,7 +732,6 @@ function renderAll(){
   renderAllocation();
   renderTwdStockRatio();
   renderCharts();
-  renderDashHoldingList();
   renderHoldingsEditor();
   renderHistoryTable();
   renderUpdatedNote();
@@ -712,6 +750,7 @@ async function reloadData(){
 (async function init(){
   if(CONFIG.API_URL.indexOf("http") !== 0){
     showToast("尚未設定 API 網址，請先在程式碼 CONFIG.API_URL 填入你的 Apps Script 網址");
+    $("#loadingOverlay").remove();
     return;
   }
   try{
@@ -719,6 +758,8 @@ async function reloadData(){
     renderAllocation();
   }catch(err){
     showToast("連線失敗："+err.message);
+  }finally{
+    $("#loadingOverlay").remove();
   }
 })();
 
