@@ -154,21 +154,24 @@
     border-radius:12px;padding:0 10px;font-size:13px;height:38px;
   }
 
-  .add-form{
-    background:var(--bg-elev);border:1px dashed var(--border);border-radius:16px;
-    padding:14px;margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;
+  .editlog-item{display:flex;gap:12px;padding:14px;border-bottom:1px solid var(--border);}
+  .editlog-item:last-child{border-bottom:none;}
+  .editlog-avatar{
+    width:40px;height:40px;border-radius:50%;flex:none;object-fit:cover;
+    background:var(--bg-elev2);
   }
-  .add-form .full{grid-column:1/-1;}
-  .add-form label{font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;}
-  .add-form input,.add-form select{
-    width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;
-    background:var(--bg-elev2);color:var(--text);
+  .editlog-avatar.fallback{
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;font-weight:700;color:var(--text-dim);
   }
-  .btn{
-    padding:11px;border-radius:10px;border:none;
-    background:var(--text);color:var(--bg);font-size:14px;font-weight:700;
-    cursor:pointer;
-  }
+  .editlog-body{flex:1;min-width:0;}
+  .editlog-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:4px;}
+  .editlog-editor{font-size:14px;font-weight:700;flex:none;}
+  .editlog-meta{font-size:12px;color:var(--text-dim);text-align:right;}
+  .editlog-qty{font-size:16px;font-weight:700;margin-bottom:4px;}
+  .editlog-qty.up{color:var(--up);}
+  .editlog-qty.down{color:var(--down);}
+  .editlog-time{font-size:11px;color:var(--text-faint);text-align:right;}
 
   table.hist{width:100%;border-collapse:collapse;font-size:12px;}
   table.hist th,table.hist td{padding:10px 6px;border-bottom:1px solid var(--border);text-align:right;}
@@ -311,21 +314,6 @@
       <h2>現金</h2>
       <div class="rowlist" id="cashList"></div>
     </section>
-    <section class="block">
-      <h2>新增項目</h2>
-      <div class="add-form">
-        <div><label>類型</label>
-          <select id="newType"><option value="股票">股票</option><option value="現金">現金</option></select>
-        </div>
-        <div><label>幣別</label>
-          <select id="newCurrency"><option value="TWD">TWD</option><option value="USD">USD</option></select>
-        </div>
-        <div><label>代號</label><input id="newCode" placeholder="例如 2330.TW / AAPL / CASH-TWD"></div>
-        <div><label>名稱</label><input id="newName" placeholder="例如 台積電"></div>
-        <div><label>數量</label><input id="newQty" type="number" step="any" placeholder="股數或金額"></div>
-        <div class="full"><button class="btn" id="addBtn" style="width:100%">新增</button></div>
-      </div>
-    </section>
   </div>
 
   <div class="view" id="view-history">
@@ -337,6 +325,13 @@
         <tbody></tbody>
       </table>
       </div>
+    </section>
+  </div>
+
+  <div class="view" id="view-editlog">
+    <section class="block">
+      <h2>編輯紀錄</h2>
+      <div class="rowlist" id="editLogList"></div>
     </section>
   </div>
 </div>
@@ -356,6 +351,9 @@
     <button data-tab="history" aria-label="歷史">
       <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
     </button>
+    <button data-tab="editlog" aria-label="編輯紀錄">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M4 19.5V6a2 2 0 0 1 2-2h9l5 5v10.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z"/><path d="M14 4v5h5"/><path d="M8 13h8M8 17h5"/></svg>
+    </button>
   </div>
 </div>
 
@@ -364,12 +362,13 @@
 <script>
 /* ============ 設定：把你部署好的 Apps Script 網址與共用密碼貼在這裡 ============ */
 const CONFIG = {
-  API_URL: "https://script.google.com/macros/s/AKfycbyJ961S8Yw75pnK83SB0n2YONgk3N3U7F7saPgnA0EN9zIIxMyQEY_Bzrh5aUxvMgsA/exec",
+    API_URL: "https://script.google.com/macros/s/AKfycbyJ961S8Yw75pnK83SB0n2YONgk3N3U7F7saPgnA0EN9zIIxMyQEY_Bzrh5aUxvMgsA/exec",
+  // API_URL: "https://script.google.com/macros/s/AKfycbyJ961S8Yw75pnK83SB0n2YONgk3N3U7F7saPgnA0EN9zIIxMyQEY_Bzrh5aUxvMgsA/exec",
   SHARED_PASSWORD: "12345678",
 };
 /* ============================================================================ */
 
-let STATE = { holdings: [], prices: [], history: [] };
+let STATE = { holdings: [], prices: [], history: [], editLog: [] };
 let fxUsdTwd = null; // 美元兌台幣匯率（來自台灣期交所公開資料）
 const FX_FALLBACK_RATE = 32; // 匯率取得失敗時的備用值
 
@@ -705,25 +704,6 @@ function renderHoldingsEditor(){
   });
 }
 
-$("#addBtn").addEventListener("click", async ()=>{
-  const editor = $("#editorName").value;
-  const payload = {
-    "類型": $("#newType").value,
-    "代號": $("#newCode").value.trim(),
-    "名稱": $("#newName").value.trim(),
-    "數量": Number($("#newQty").value)||0,
-    "幣別": $("#newCurrency").value,
-    editor
-  };
-  if(!payload["代號"]){ showToast("請輸入代號"); return; }
-  const r = await apiPost("addHolding", payload);
-  if(r.ok){
-    showToast("已新增");
-    $("#newCode").value=""; $("#newName").value=""; $("#newQty").value="";
-    await reloadData();
-  } else { showToast(r.error||"新增失敗"); }
-});
-
 function renderHistoryTable(){
   const tbody = $("#histTable tbody");
   const h = lastTwoHistory().slice().reverse();
@@ -737,6 +717,40 @@ function renderHistoryTable(){
     <td class="num">${Number(r["USD股票市值"]||0).toLocaleString()}</td>
     <td class="num">${Number(r["USD資產總額"]||0).toLocaleString()}</td>
   </tr>`).join("");
+}
+
+const EDITOR_AVATARS = { "芒果": "EditorB.jpg", "脆脆": "EditorA.jpg" };
+
+function renderEditLogList(){
+  const wrap = $("#editLogList");
+  const log = STATE.editLog.slice().sort((a,b)=> new Date(b["時間"]) - new Date(a["時間"]));
+  if(!log.length){ wrap.innerHTML = '<div class="empty">尚無編輯紀錄</div>'; return; }
+
+  wrap.innerHTML = log.map(r=>{
+    const editor = r["編輯者"]||"";
+    const before = Number(r["編輯前數量"]||0);
+    const after = Number(r["編輯後數量"]||0);
+    const diff = after - before;
+    const qtyCls = diff>0?"up":diff<0?"down":"";
+    const diffStr = (diff>0?"+":"") + diff.toLocaleString();
+    const avatarSrc = EDITOR_AVATARS[editor];
+    const avatar = avatarSrc
+      ? `<img class="editlog-avatar" src="${avatarSrc}" alt="${editor}">`
+      : `<div class="editlog-avatar fallback">${editor ? editor.charAt(0) : "?"}</div>`;
+    const dateStr = r["時間"] ? new Date(r["時間"]).toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'}) : "";
+
+    return `<div class="editlog-item">
+      ${avatar}
+      <div class="editlog-body">
+        <div class="editlog-top">
+          <span class="editlog-editor">${editor}</span>
+          <span class="editlog-meta">${r["類型"]||""} · ${r["名稱"]||""} · ${r["幣別"]||""}</span>
+        </div>
+        <div class="editlog-qty num ${qtyCls}">${diffStr} 現為 ${after.toLocaleString()}</div>
+        <div class="editlog-time">${dateStr}</div>
+      </div>
+    </div>`;
+  }).join("");
 }
 
 function renderUpdatedNote(){
@@ -755,13 +769,14 @@ function renderAll(){
   renderCharts();
   renderHoldingsEditor();
   renderHistoryTable();
+  renderEditLogList();
   renderUpdatedNote();
 }
 
 async function reloadData(){
   const data = await apiGet("dashboard");
   if(data.ok){
-    STATE.holdings = data.holdings; STATE.prices = data.prices; STATE.history = data.history;
+    STATE.holdings = data.holdings; STATE.prices = data.prices; STATE.history = data.history; STATE.editLog = data.editLog || [];
     renderAll();
   } else {
     showToast(data.error || "讀取失敗");
