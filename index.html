@@ -45,7 +45,7 @@
   button, input, select{font-family:inherit;}
   svg.icon{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 
-  #app{max-width:720px;margin:0 auto;padding:20px 16px 110px;}
+  #app{max-width:720px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top)) 16px 110px;}
 
   header.topbar{
     display:flex;align-items:center;justify-content:space-between;
@@ -149,15 +149,9 @@
     padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;flex:none;
   }
 
-  .editor-select-row{
-    display:flex;align-items:center;justify-content:space-between;gap:10px;
-    background:var(--bg-elev);border:1px solid var(--border);border-radius:14px;
-    padding:12px 14px;margin-bottom:18px;
-  }
-  .editor-select-row label{font-size:12px;color:var(--text-dim);}
-  .editor-select-row select{
-    background:var(--bg-elev2);color:var(--text);border:1px solid var(--border);
-    border-radius:8px;padding:7px 10px;font-size:13px;
+  .topbar-editor-select{
+    background:var(--bg-elev);color:var(--text);border:1px solid var(--border);
+    border-radius:12px;padding:0 10px;font-size:13px;height:38px;
   }
 
   .add-form{
@@ -242,11 +236,12 @@
       <h1>資產帳本</h1>
     </div>
     <div class="icon-btn-group">
+      <select id="editorName" class="topbar-editor-select">
+        <option>芒果</option>
+        <option>脆脆</option>
+      </select>
       <button class="icon-btn" id="refreshBtn" aria-label="重新整理股價">
         <svg class="icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
-      </button>
-      <button class="icon-btn" data-tab="history" aria-label="歷史紀錄">
-        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
       </button>
     </div>
   </header>
@@ -308,13 +303,6 @@
   </div>
 
   <div class="view" id="view-holdings">
-    <div class="editor-select-row">
-      <label>目前編輯者</label>
-      <select id="editorName">
-        <option>芒果</option>
-        <option>脆脆</option>
-      </select>
-    </div>
     <section class="block">
       <h2>股票</h2>
       <div class="rowlist" id="stockList"></div>
