@@ -194,12 +194,6 @@
     display:flex;align-items:center;justify-content:center;color:var(--text-faint);cursor:pointer;
   }
   .tabbar button.active{background:var(--bg-elev2);color:var(--text);}
-  .fab{
-    position:fixed;right:20px;bottom:32px;
-    width:56px;height:56px;border-radius:50%;background:var(--orange);color:#fff;
-    border:none;display:flex;align-items:center;justify-content:center;
-    box-shadow:0 8px 20px rgba(242,121,61,0.4);cursor:pointer;z-index:20;
-  }
 
   .toast{
     position:fixed;bottom:110px;left:50%;transform:translateX(-50%);
@@ -255,19 +249,11 @@
     <div class="cards">
       <div class="curr-card">
         <div class="curr-head">
-          <div class="curr-head-left"><span class="flag-dot twd"></span><span class="curr-label">台灣資產</span></div>
+          <div class="curr-head-left"><span class="flag-dot twd"></span><span class="curr-label">總資產</span></div>
         </div>
-        <div class="curr-total num" id="twdTotal">NT$ --</div>
-        <div class="curr-delta flat" id="twdDelta">--</div>
-        <div class="spark-wrap"><canvas id="sparkTWD"></canvas></div>
-      </div>
-      <div class="curr-card">
-        <div class="curr-head">
-          <div class="curr-head-left"><span class="flag-dot usd"></span><span class="curr-label">美國資產</span></div>
-        </div>
-        <div class="curr-total num" id="usdTotal">US$ --</div>
-        <div class="curr-delta flat" id="usdDelta">--</div>
-        <div class="spark-wrap"><canvas id="sparkUSD"></canvas></div>
+        <div class="curr-total num" id="totalTotal">NT$ --</div>
+        <div class="curr-delta flat" id="totalDelta">--</div>
+        <div class="spark-wrap"><canvas id="sparkTotal"></canvas></div>
       </div>
     </div>
 
@@ -289,18 +275,14 @@
     </div>
 
     <div class="range-row">
-      <button data-range="7" class="active">近7天</button>
-      <button data-range="30">近30天</button>
+      <button data-range="7" class="active">近1週</button>
+      <button data-range="30">近1月</button>
       <button data-range="all">全部</button>
     </div>
 
     <div class="chart-card">
-      <h3>台幣資產走勢</h3>
-      <div class="chart-wrap"><canvas id="chartTWD" role="img" aria-label="台幣資產走勢折線圖"></canvas></div>
-    </div>
-    <div class="chart-card">
-      <h3>美金資產走勢</h3>
-      <div class="chart-wrap"><canvas id="chartUSD" role="img" aria-label="美金資產走勢折線圖"></canvas></div>
+      <h3>總資產走勢</h3>
+      <div class="chart-wrap"><canvas id="chartTotal" role="img" aria-label="總資產走勢折線圖"></canvas></div>
     </div>
 
   </div>
@@ -335,10 +317,6 @@
     </section>
   </div>
 </div>
-
-<button class="fab" id="fabEdit" aria-label="編輯持股">
-  <svg class="icon" viewBox="0 0 24 24" stroke="#fff"><path d="M17 3a2.8 2.8 0 0 1 4 4L7 21l-4 1 1-4Z"/></svg>
-</button>
 
 <div class="tabbar-wrap">
   <div class="tabbar">
@@ -423,8 +401,6 @@ function switchTab(tabName){
 $$("[data-tab]").forEach(btn=>{
   btn.addEventListener("click", ()=> switchTab(btn.dataset.tab));
 });
-$("#fabEdit").addEventListener("click", ()=> switchTab("holdings"));
-
 $("#refreshBtn").addEventListener("click", async ()=>{
   const btn = $("#refreshBtn");
   btn.classList.add("loading");
@@ -468,7 +444,11 @@ function computeTotals(){
       if(cur==="TWD") twdStock+=val; else if(cur==="USD") usdStock+=val;
     }
   });
-  return {twdCash,twdStock,usdCash,usdStock,twdTotal:twdCash+twdStock,usdTotal:usdCash+usdStock};
+  const rate = fxUsdTwd || FX_FALLBACK_RATE;
+  const twdTotal = twdCash+twdStock;
+  const usdTotal = usdCash+usdStock;
+  const grandTotalTwd = twdTotal + usdTotal*rate;
+  return {twdCash,twdStock,usdCash,usdStock,twdTotal,usdTotal,grandTotalTwd};
 }
 
 function lastTwoHistory(){
@@ -494,10 +474,14 @@ function drawLine(canvasId, labels, data, color){
     data:{ labels, datasets:[{ data, borderColor:color, borderWidth:2, pointRadius:0, tension:0.25, fill:false }] },
     options:{
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ mode:'index', intersect:false } },
+      plugins:{ legend:{display:false}, tooltip:{ mode:'index', intersect:false, callbacks:{ label:(ctx)=> formatWan(ctx.parsed.y) } } },
       scales:{ x:{ display:false }, y:{ display:false } }
     }
   });
+}
+
+function formatWan(n){
+  return (Number(n)/10000).toLocaleString(undefined,{maximumFractionDigits:1}) + " 萬";
 }
 
 function drawFullChart(canvasId, labels, data, color, unitLabel){
@@ -507,10 +491,13 @@ function drawFullChart(canvasId, labels, data, color, unitLabel){
     data:{ labels, datasets:[{ label:unitLabel, data, borderColor:color, backgroundColor:color+"26", borderWidth:2, pointRadius:2, tension:0.2, fill:true }] },
     options:{
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false} },
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{ label:(ctx)=> ctx.dataset.label+"："+formatWan(ctx.parsed.y) } }
+      },
       scales:{
         x:{ ticks:{ color:'#666A78', maxRotation:0, autoSkip:true, font:{size:10} }, grid:{ display:false } },
-        y:{ ticks:{ color:'#666A78', font:{size:10} }, grid:{ color:'#2B2E3A' } }
+        y:{ ticks:{ color:'#666A78', font:{size:10}, callback:(v)=> formatWan(v) }, grid:{ color:'#2B2E3A' } }
       }
     }
   });
@@ -524,16 +511,19 @@ function historySliced(){
   return h.slice(-n);
 }
 
+function totalTwdOf(row){
+  const rate = fxUsdTwd || FX_FALLBACK_RATE;
+  return (Number(row["TWD資產總額"])||0) + (Number(row["USD資產總額"])||0)*rate;
+}
+
 function renderCharts(){
   const h = historySliced();
   const labels = h.map(r=> new Date(r["日期"]).toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit'}));
-  drawFullChart("chartTWD", labels, h.map(r=>Number(r["TWD資產總額"])||0), "#9C90E8", "TWD");
-  drawFullChart("chartUSD", labels, h.map(r=>Number(r["USD資產總額"])||0), "#5B9BEF", "USD");
+  drawFullChart("chartTotal", labels, h.map(totalTwdOf), "#9C90E8", "TWD");
 
   const spark = lastTwoHistory().slice(-14);
   const sLabels = spark.map(r=>r["日期"]);
-  drawLine("sparkTWD", sLabels, spark.map(r=>Number(r["TWD資產總額"])||0), "#9C90E8");
-  drawLine("sparkUSD", sLabels, spark.map(r=>Number(r["USD資產總額"])||0), "#5B9BEF");
+  drawLine("sparkTotal", sLabels, spark.map(totalTwdOf), "#9C90E8");
 }
 
 $$(".range-row button").forEach(b=>{
@@ -603,13 +593,11 @@ function renderTwdStockRatio(){
 
 function renderDashCards(){
   const t = computeTotals();
-  $("#twdTotal").textContent = fmtMoney(t.twdTotal, "NT$");
-  $("#usdTotal").textContent = fmtMoney(t.usdTotal, "US$");
+  $("#totalTotal").textContent = fmtMoney(t.grandTotalTwd, "NT$");
 
   const hist = lastTwoHistory();
   const prevRow = hist.length ? hist[hist.length-1] : null;
-  renderDeltaEl($("#twdDelta"), t.twdTotal, prevRow ? Number(prevRow["TWD資產總額"]) : undefined);
-  renderDeltaEl($("#usdDelta"), t.usdTotal, prevRow ? Number(prevRow["USD資產總額"]) : undefined);
+  renderDeltaEl($("#totalDelta"), t.grandTotalTwd, prevRow ? totalTwdOf(prevRow) : undefined);
 }
 
 let editingRows = new Set();
