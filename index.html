@@ -79,11 +79,6 @@
   .flag-dot.usd{background:var(--blue);}
   .curr-label{font-size:13px;color:var(--text-dim);font-weight:500;}
   .curr-total{font-size:32px;font-weight:900;margin:2px 0 6px;letter-spacing:-0.5px;}
-  .curr-delta{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:500;padding:3px 9px;border-radius:20px;}
-  .curr-delta.up{color:var(--up);background:rgba(255,107,107,0.12);}
-  .curr-delta.down{color:var(--down);background:rgba(53,208,140,0.12);}
-  .curr-delta.flat{color:var(--text-faint);background:var(--bg-elev2);}
-  .spark-wrap{height:40px;margin-top:10px;position:relative;}
 
   .range-row{display:flex;gap:8px;margin:2px 0 14px;}
   .range-row button{
@@ -211,6 +206,7 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
     background:var(--bg);
   }
+  .loading-overlay[hidden]{display:none;}
   .loading-overlay .spinner{
     width:34px;height:34px;border-radius:50%;
     border:3px solid var(--bg-elev2);border-top-color:var(--purple);
@@ -224,7 +220,7 @@
 
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
-  <span>資料讀取中...</span>
+  <span id="loadingOverlayText">資料讀取中...</span>
 </div>
 
 <div id="app">
@@ -253,8 +249,6 @@
           <div class="curr-head-left"><span class="flag-dot twd"></span><span class="curr-label">總資產</span></div>
         </div>
         <div class="curr-total num" id="totalTotal">NT$ --</div>
-        <div class="curr-delta flat" id="totalDelta">--</div>
-        <div class="spark-wrap"><canvas id="sparkTotal"></canvas></div>
       </div>
     </div>
 
@@ -342,7 +336,8 @@
 <script>
 /* ============ 設定：把你部署好的 Apps Script 網址與共用密碼貼在這裡 ============ */
 const CONFIG = {
-    API_URL: "https://script.google.com/macros/s/AKfycbyJ961S8Yw75pnK83SB0n2YONgk3N3U7F7saPgnA0EN9zIIxMyQEY_Bzrh5aUxvMgsA/exec",
+  API_URL: "https://script.google.com/macros/s/AKfycbwvFybED5YAHTJ4AecxEySXP-nEztPm7TE4XSE7XOcSYoFna_25pL4MRkEKrbwGHruk/exec",
+  // API_URL: "https://script.google.com/macros/s/AKfycbyJ961S8Yw75pnK83SB0n2YONgk3N3U7F7saPgnA0EN9zIIxMyQEY_Bzrh5aUxvMgsA/exec",
   // API_URL: "https://script.google.com/macros/s/AKfycbyJ961S8Yw75pnK83SB0n2YONgk3N3U7F7saPgnA0EN9zIIxMyQEY_Bzrh5aUxvMgsA/exec",
   SHARED_PASSWORD: "12345678",
 };
@@ -376,6 +371,14 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove("show"), 2200);
 }
 
+function showOverlay(msg){
+  $("#loadingOverlayText").textContent = msg || "更新中...";
+  $("#loadingOverlay").hidden = false;
+}
+function hideOverlay(){
+  $("#loadingOverlay").hidden = true;
+}
+
 function fmtMoney(n, sym){
   const v = Number(n)||0;
   return sym + " " + v.toLocaleString(undefined,{maximumFractionDigits:0});
@@ -406,10 +409,11 @@ $$("[data-tab]").forEach(btn=>{
 $("#refreshBtn").addEventListener("click", async ()=>{
   const btn = $("#refreshBtn");
   btn.classList.add("loading");
+  showOverlay("股價更新中...");
   try{
     const r = await apiPost("refreshNow", {});
     if(r.ok){
-      await reloadData();
+      applyDashboardData(r);
       showToast("股價已更新");
     } else {
       showToast(r.error || "更新失敗");
@@ -417,6 +421,7 @@ $("#refreshBtn").addEventListener("click", async ()=>{
   }catch(err){
     showToast("連線失敗："+err.message);
   }finally{
+    hideOverlay();
     btn.classList.remove("loading");
   }
 });
@@ -459,31 +464,7 @@ function lastTwoHistory(){
     .sort((a,b)=> new Date(a["日期"]) - new Date(b["日期"]));
 }
 
-function renderDeltaEl(el, todayVal, prevVal){
-  if(prevVal===undefined || prevVal===null || isNaN(prevVal)){
-    el.textContent = "尚無比較基準"; el.className="curr-delta flat"; return;
-  }
-  const diff = todayVal - prevVal;
-  const pct = prevVal!==0 ? (diff/prevVal*100) : 0;
-  const sign = diff>0?"▲":diff<0?"▼":"—";
-  el.textContent = sign + " " + Math.abs(diff).toLocaleString(undefined,{maximumFractionDigits:0}) + "（" + pct.toFixed(2) + "%）";
-  el.className = "curr-delta " + (diff>0?"up":diff<0?"down":"flat");
-}
-
 let charts = {};
-function drawLine(canvasId, labels, data, color){
-  if(charts[canvasId]) charts[canvasId].destroy();
-  charts[canvasId] = new Chart(document.getElementById(canvasId), {
-    type:'line',
-    data:{ labels, datasets:[{ data, borderColor:color, borderWidth:2, pointRadius:0, tension:0.25, fill:false }] },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ mode:'index', intersect:false, displayColors:false, titleAlign:'center', bodyAlign:'center', callbacks:{ label:(ctx)=> formatWan(ctx.parsed.y) } } },
-      scales:{ x:{ display:false }, y:{ display:false } }
-    }
-  });
-}
-
 function formatWan(n){
   return (Number(n)/10000).toLocaleString(undefined,{maximumFractionDigits:0}) + " 萬";
 }
@@ -492,9 +473,10 @@ function drawFullChart(canvasId, labels, data, color, unitLabel, fullLabels){
   if(charts[canvasId]) charts[canvasId].destroy();
   charts[canvasId] = new Chart(document.getElementById(canvasId), {
     type:'line',
-    data:{ labels, datasets:[{ label:unitLabel, data, borderColor:color, backgroundColor:color+"26", borderWidth:2, pointRadius:2, tension:0.2, fill:true }] },
+    data:{ labels, datasets:[{ label:unitLabel, data, borderColor:color, backgroundColor:color+"26", borderWidth:2, pointRadius:2, pointHitRadius:15, tension:0.2, fill:true }] },
     options:{
       responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
       plugins:{
         legend:{display:false},
         tooltip:{ displayColors:false, titleAlign:'center', bodyAlign:'center', callbacks:{
@@ -532,10 +514,6 @@ function renderCharts(){
   const labels = h.map(r=> new Date(r["日期"]).toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit'}));
   const fullLabels = h.map(r=> fullDateLabel(r["日期"]));
   drawFullChart("chartTotal", labels, h.map(totalTwdOf), "#9C90E8", "TWD", fullLabels);
-
-  const spark = lastTwoHistory().slice(-14);
-  const sLabels = spark.map(r=> fullDateLabel(r["日期"]));
-  drawLine("sparkTotal", sLabels, spark.map(totalTwdOf), "#9C90E8");
 }
 
 $$(".range-row button").forEach(b=>{
@@ -606,10 +584,6 @@ function renderTwdStockRatio(){
 function renderDashCards(){
   const t = computeTotals();
   $("#totalTotal").textContent = fmtMoney(t.grandTotalTwd, "NT$");
-
-  const hist = lastTwoHistory();
-  const prevRow = hist.length ? hist[hist.length-1] : null;
-  renderDeltaEl($("#totalDelta"), t.grandTotalTwd, prevRow ? totalTwdOf(prevRow) : undefined);
 }
 
 let editingRows = new Set();
@@ -689,17 +663,21 @@ function renderHoldingsEditor(){
       const input = document.querySelector(`.qty-input[data-row="${row}"]`);
       const editor = $("#editorName").value;
       btn.textContent = "儲存中";
+      showOverlay("儲存中...");
       const r = await apiPost("updateHolding", { row: Number(row), "數量": Number(input.value), editor });
       btn.textContent = "儲存";
-      if(r.ok){ editingRows.delete(row); showToast("已更新數量"); await reloadData(); } else { showToast(r.error||"更新失敗"); }
+      hideOverlay();
+      if(r.ok){ editingRows.delete(row); showToast("已更新數量"); applyDashboardData(r); } else { showToast(r.error||"更新失敗"); }
     });
   });
   $$("#view-holdings [data-action='delete']").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
       if(!confirm("確定要刪除這個項目嗎？")) return;
       const row = btn.dataset.row;
+      showOverlay("刪除中...");
       const r = await apiPost("deleteHolding", { row: Number(row) });
-      if(r.ok){ editingRows.delete(row); showToast("已刪除"); await reloadData(); } else { showToast(r.error||"刪除失敗"); }
+      hideOverlay();
+      if(r.ok){ editingRows.delete(row); showToast("已刪除"); applyDashboardData(r); } else { showToast(r.error||"刪除失敗"); }
     });
   });
 }
@@ -773,11 +751,15 @@ function renderAll(){
   renderUpdatedNote();
 }
 
+function applyDashboardData(data){
+  STATE.holdings = data.holdings; STATE.prices = data.prices; STATE.history = data.history; STATE.editLog = data.editLog || [];
+  renderAll();
+}
+
 async function reloadData(){
   const data = await apiGet("dashboard");
   if(data.ok){
-    STATE.holdings = data.holdings; STATE.prices = data.prices; STATE.history = data.history; STATE.editLog = data.editLog || [];
-    renderAll();
+    applyDashboardData(data);
   } else {
     showToast(data.error || "讀取失敗");
   }
@@ -786,7 +768,7 @@ async function reloadData(){
 (async function init(){
   if(CONFIG.API_URL.indexOf("http") !== 0){
     showToast("尚未設定 API 網址，請先在程式碼 CONFIG.API_URL 填入你的 Apps Script 網址");
-    $("#loadingOverlay").remove();
+    hideOverlay();
     return;
   }
   try{
@@ -795,7 +777,7 @@ async function reloadData(){
   }catch(err){
     showToast("連線失敗："+err.message);
   }finally{
-    $("#loadingOverlay").remove();
+    hideOverlay();
   }
 })();
 
