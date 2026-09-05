@@ -104,11 +104,12 @@
   .alloc-card h3{margin:0 0 14px;font-size:14px;font-weight:700;}
   .alloc-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--bg-elev2);margin-bottom:12px;}
   .alloc-bar span{height:100%;}
-  .alloc-legend{display:flex;flex-wrap:wrap;gap:10px 0;font-size:13px;}
-  .alloc-legend .item{display:flex;align-items:center;gap:8px;width:100%;}
-  .alloc-legend .dot{width:9px;height:9px;border-radius:50%;flex:none;}
-  .alloc-legend .val{font-weight:600;margin-left:6px;}
-  .alloc-legend .pct{color:var(--text-dim);font-size:12px;margin-left:4px;}
+  .alloc-legend{display:grid;grid-template-columns:auto auto auto 1fr;column-gap:8px;row-gap:10px;font-size:13px;align-items:center;}
+  .alloc-legend .item{display:contents;}
+  .alloc-legend .dot{width:9px;height:9px;border-radius:50%;}
+  .alloc-legend .label{white-space:nowrap;}
+  .alloc-legend .val{font-weight:600;justify-self:start;white-space:nowrap;}
+  .alloc-legend .pct{color:var(--text-dim);font-size:12px;justify-self:end;}
 
   section.block{margin-bottom:24px;}
   section.block h2{font-size:14px;font-weight:700;margin:0 0 10px;padding-left:2px;}
@@ -202,7 +203,7 @@
   }
   .toast.show{opacity:1;}
 
-  .empty{color:var(--text-faint);font-size:13px;padding:24px;text-align:center;}
+  .empty{color:var(--text-faint);font-size:13px;padding:24px;text-align:center;grid-column:1/-1;}
   .updated-note{font-size:11px;color:var(--text-faint);margin:-8px 0 18px;text-align:right;}
 
   .loading-overlay{
@@ -261,10 +262,10 @@
       <h3>資產比例</h3>
       <div class="alloc-bar" id="allocBar"></div>
       <div class="alloc-legend">
-        <div class="item"><span class="dot" style="background:var(--purple)"></span>台股<span class="val num" id="allocTwdStockVal">--</span><span class="pct" id="allocTwdStockPct"></span></div>
-        <div class="item"><span class="dot" style="background:var(--blue)"></span>台幣<span class="val num" id="allocTwdCashVal">--</span><span class="pct" id="allocTwdCashPct"></span></div>
-        <div class="item"><span class="dot" style="background:var(--orange)"></span>美股<span class="val num" id="allocUsdStockVal">--</span><span class="pct" id="allocUsdStockPct"></span></div>
-        <div class="item"><span class="dot" style="background:var(--down)"></span>美金<span class="val num" id="allocUsdCashVal">--</span><span class="pct" id="allocUsdCashPct"></span></div>
+        <div class="item"><span class="dot" style="background:var(--purple)"></span><span class="label">台股</span><span class="val num" id="allocTwdStockVal">--</span><span class="pct" id="allocTwdStockPct"></span></div>
+        <div class="item"><span class="dot" style="background:var(--blue)"></span><span class="label">台幣</span><span class="val num" id="allocTwdCashVal">--</span><span class="pct" id="allocTwdCashPct"></span></div>
+        <div class="item"><span class="dot" style="background:var(--orange)"></span><span class="label">美股</span><span class="val num" id="allocUsdStockVal">--</span><span class="pct" id="allocUsdStockPct"></span></div>
+        <div class="item"><span class="dot" style="background:var(--down)"></span><span class="label">美金</span><span class="val num" id="allocUsdCashVal">--</span><span class="pct" id="allocUsdCashPct"></span></div>
       </div>
     </div>
 
@@ -277,6 +278,7 @@
     <div class="range-row">
       <button data-range="7" class="active">近1週</button>
       <button data-range="30">近1月</button>
+      <button data-range="180">近180天</button>
       <button data-range="all">全部</button>
     </div>
 
@@ -452,7 +454,9 @@ function computeTotals(){
 }
 
 function lastTwoHistory(){
-  return STATE.history.slice().sort((a,b)=> new Date(a["日期"]) - new Date(b["日期"]));
+  return STATE.history
+    .filter(r=> r["日期"] && !isNaN(new Date(r["日期"]).getTime()))
+    .sort((a,b)=> new Date(a["日期"]) - new Date(b["日期"]));
 }
 
 function renderDeltaEl(el, todayVal, prevVal){
@@ -474,17 +478,17 @@ function drawLine(canvasId, labels, data, color){
     data:{ labels, datasets:[{ data, borderColor:color, borderWidth:2, pointRadius:0, tension:0.25, fill:false }] },
     options:{
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{ mode:'index', intersect:false, callbacks:{ label:(ctx)=> formatWan(ctx.parsed.y) } } },
+      plugins:{ legend:{display:false}, tooltip:{ mode:'index', intersect:false, displayColors:false, titleAlign:'center', bodyAlign:'center', callbacks:{ label:(ctx)=> formatWan(ctx.parsed.y) } } },
       scales:{ x:{ display:false }, y:{ display:false } }
     }
   });
 }
 
 function formatWan(n){
-  return (Number(n)/10000).toLocaleString(undefined,{maximumFractionDigits:1}) + " 萬";
+  return (Number(n)/10000).toLocaleString(undefined,{maximumFractionDigits:0}) + " 萬";
 }
 
-function drawFullChart(canvasId, labels, data, color, unitLabel){
+function drawFullChart(canvasId, labels, data, color, unitLabel, fullLabels){
   if(charts[canvasId]) charts[canvasId].destroy();
   charts[canvasId] = new Chart(document.getElementById(canvasId), {
     type:'line',
@@ -493,7 +497,10 @@ function drawFullChart(canvasId, labels, data, color, unitLabel){
       responsive:true, maintainAspectRatio:false,
       plugins:{
         legend:{display:false},
-        tooltip:{ callbacks:{ label:(ctx)=> ctx.dataset.label+"："+formatWan(ctx.parsed.y) } }
+        tooltip:{ displayColors:false, titleAlign:'center', bodyAlign:'center', callbacks:{
+          title:(items)=> fullLabels ? fullLabels[items[0].dataIndex] : items[0].label,
+          label:(ctx)=> formatWan(ctx.parsed.y)
+        } }
       },
       scales:{
         x:{ ticks:{ color:'#666A78', maxRotation:0, autoSkip:true, font:{size:10} }, grid:{ display:false } },
@@ -516,13 +523,18 @@ function totalTwdOf(row){
   return (Number(row["TWD資產總額"])||0) + (Number(row["USD資產總額"])||0)*rate;
 }
 
+function fullDateLabel(dateVal){
+  return new Date(dateVal).toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit'});
+}
+
 function renderCharts(){
   const h = historySliced();
   const labels = h.map(r=> new Date(r["日期"]).toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit'}));
-  drawFullChart("chartTotal", labels, h.map(totalTwdOf), "#9C90E8", "TWD");
+  const fullLabels = h.map(r=> fullDateLabel(r["日期"]));
+  drawFullChart("chartTotal", labels, h.map(totalTwdOf), "#9C90E8", "TWD", fullLabels);
 
   const spark = lastTwoHistory().slice(-14);
-  const sLabels = spark.map(r=>r["日期"]);
+  const sLabels = spark.map(r=> fullDateLabel(r["日期"]));
   drawLine("sparkTotal", sLabels, spark.map(totalTwdOf), "#9C90E8");
 }
 
@@ -547,10 +559,10 @@ function renderAllocation(){
   const usdCashPct = total ? (usdCashInTwd/total*100) : 0;
 
   $("#allocBar").innerHTML = `<span style="width:${twdStockPct}%;background:var(--purple)"></span><span style="width:${twdCashPct}%;background:var(--blue)"></span><span style="width:${usdStockPct}%;background:var(--orange)"></span><span style="width:${usdCashPct}%;background:var(--down)"></span>`;
-  $("#allocTwdStockVal").textContent = "NT$ "+Math.round(t.twdStock).toLocaleString();
-  $("#allocTwdCashVal").textContent = "NT$ "+Math.round(t.twdCash).toLocaleString();
-  $("#allocUsdStockVal").textContent = "NT$ "+Math.round(usdStockInTwd).toLocaleString()+"（ US$ "+Math.round(t.usdStock).toLocaleString()+" ）";
-  $("#allocUsdCashVal").textContent = "NT$ "+Math.round(usdCashInTwd).toLocaleString()+"（ US$"+Math.round(t.usdCash).toLocaleString()+" ）";
+  $("#allocTwdStockVal").textContent = "NT$ "+formatWan(t.twdStock);
+  $("#allocTwdCashVal").textContent = "NT$ "+formatWan(t.twdCash);
+  $("#allocUsdStockVal").textContent = "NT$ "+formatWan(usdStockInTwd)+"（ US$ "+formatWan(t.usdStock)+" ）";
+  $("#allocUsdCashVal").textContent = "NT$ "+formatWan(usdCashInTwd)+"（ US$ "+formatWan(t.usdCash)+" ）";
   $("#allocTwdStockPct").textContent = twdStockPct.toFixed(0)+"%";
   $("#allocTwdCashPct").textContent = twdCashPct.toFixed(0)+"%";
   $("#allocUsdStockPct").textContent = usdStockPct.toFixed(0)+"%";
@@ -587,7 +599,7 @@ function renderTwdStockRatio(){
 
   legend.innerHTML = items.map((it,i)=>{
     const pct = it.val/total*100;
-    return `<div class="item"><span class="dot" style="background:${TWD_RATIO_PALETTE[i%TWD_RATIO_PALETTE.length]}"></span>${it.name}<span class="val num">NT$ ${Math.round(it.val).toLocaleString()}</span><span class="pct">${pct.toFixed(0)}%</span></div>`;
+    return `<div class="item"><span class="dot" style="background:${TWD_RATIO_PALETTE[i%TWD_RATIO_PALETTE.length]}"></span><span class="label">${it.name}</span><span class="val num">NT$ ${formatWan(it.val)}</span><span class="pct">${pct.toFixed(0)}%</span></div>`;
   }).join("");
 }
 
